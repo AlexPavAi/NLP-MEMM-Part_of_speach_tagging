@@ -391,17 +391,30 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     return features
 
 
-def history_quadruples_to_indices(file_path):
+def collect_history_quadruples(file_path):
     history_table = []
     with open(file_path) as f:
         for line in f:
             splited_words = line.split(' ')
             del splited_words[-1]
-            for word_idx in range(2, len(splited_words)-1):
-                ppword, pptag = splited_words[word_idx - 2].split('_')
-                pword, ptag = splited_words[word_idx - 1].split('_')
+            for word_idx in range(0, len(splited_words)):
+                if word_idx == 0:
+                    ppword, pptag = ('*', '*')
+                    pword, ptag = ('*', '*')
+                    nword, ntag = splited_words[word_idx + 1].split('_')
+                elif word_idx == 1:
+                    ppword, pptag = ('*', '*')
+                    pword, ptag = splited_words[word_idx - 1].split('_')
+                    nword, ntag = splited_words[word_idx + 1].split('_')
+                elif word_idx == len(splited_words) - 1:
+                    nword, ntag = ('STOP', 'STOP')
+                else:
+                    ppword, pptag = splited_words[word_idx - 2].split('_')
+                    pword, ptag = splited_words[word_idx - 1].split('_')
+                    nword, ntag = splited_words[word_idx + 1].split('_')
+
                 cword, ctag = splited_words[word_idx].split('_')
-                nword, ntag = splited_words[word_idx + 1].split('_')
+
                 curr_quadruple_history = (ppword, pptag, pword, ptag, cword, ctag, nword, ntag)
                 history_table.append(curr_quadruple_history)
 
@@ -438,6 +451,18 @@ def generate_table_of_history_tags_features_for_test(my_feature2id_class, histor
                     history_tags_features_table[history_index, pptag_index, ptag_index, ctag_index] = curr_feature_vector
 
 
+def get_all_gt_tags_ordered(file_path):
+    all_tags_gt_ordered = []
+    with open(file_path) as f:
+        for line in f:
+            splited_words = line.split(' ')
+            del splited_words[-1]
+            for word_idx in range(len(splited_words)):
+                cur_word, cur_tag = splited_words[word_idx].split('_')
+                all_tags_gt_ordered.append(cur_tag)
+    return all_tags_gt_ordered
+
+
 def main():
     start_time_section_1 = time.time()
     num_features = 8
@@ -460,11 +485,10 @@ def main():
     my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features)
 
     # generate a history quadruple table #
-    history_quadruple_table = history_quadruples_to_indices(file_path)
+    history_quadruple_table = collect_history_quadruples(file_path)
 
     # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
-    all_word_tag_list = my_feature_statistics_class.array_count_dicts[0].keys()
-    correct_tags_ordered = [x[1] for x in all_word_tag_list]  # all tags in order of appearance in text
+    correct_tags_ordered = get_all_gt_tags_ordered(file_path)
     tags_list = list(set(correct_tags_ordered))  # unique appearance of all possible tags
     correct_tags_ordered_indexed = [tags_list.index(x) for x in correct_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
 
