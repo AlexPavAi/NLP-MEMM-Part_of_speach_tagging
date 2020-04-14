@@ -41,7 +41,7 @@ def calc_objective_per_iter(w_i, feature_mat: sparse.csr_matrix, empirical_count
     sum_exp = np.sum(exp_scores, axis=1)
     probs = exp_scores/sum_exp.reshape((num_h, 1))
     expected_counts = feature_mat.transpose().dot(probs.reshape(-1)).reshape(-1)
-    likelihood = np.sum(scores[np.arange(num_h), true_tags] - np.log(sum_exp) - (alpha/2) * (w_i**2))
+    likelihood = np.sum(scores[np.arange(num_h), true_tags]) - np.log(sum_exp).sum() - (alpha/2) * (w_i**2).sum()
     grad = empirical_counts - expected_counts - alpha*w_i
     return (-1) * likelihood, (-1) * grad
 
@@ -65,7 +65,7 @@ def train_from_file(path, alpha, weights_path):
     return weights
 
 
-def train_from_list(feature_list, true_tags, alpha, weights_path, time_run=False):
+def train_from_list(feature_list, true_tags, alpha, weights_path=None, time_run=False):
     if time_run:
         t1 = time.time()
     feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list)
