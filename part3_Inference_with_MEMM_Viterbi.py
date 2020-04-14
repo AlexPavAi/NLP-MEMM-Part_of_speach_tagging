@@ -27,15 +27,22 @@ def memm_viterbi(sentences_q_list):
     tags_infer = []
     for q in sentences_q_list:
         num_h = len(q)
-        pi = [q[0].reshape(q.shape[1:])]
-        bp = np.empty(num_h+1)
+        curr_tags = [0] * num_h
+        pi = [q[0].reshape(q[0].shape[1:])]
+        print(pi[0])
+        bp = [0]
         for k in range(1, num_h):
             pi_prev = pi[k-1].reshape(pi[k-1].shape[0], -1, 1)
-            curr_bp = np.argmax(pi_prev * q[k])
-            bp[k-1] = curr_bp
-            i, j = np.ogrid[: q.shape[1], : q.shape[2]]
-            pi.append(q[k][curr_bp, i, j])
-        tags_infer.append(bp[1:])
+            probs = pi_prev * q[k]
+            curr_bp = np.argmax(probs, axis=0)
+            bp.append(curr_bp)
+            i, j = np.ogrid[: probs.shape[1], : probs.shape[2]]
+            pi.append(probs[curr_bp, i, j])
+            print(pi[k])
+        curr_tags[num_h-2], curr_tags[num_h-1] = np.unravel_index(np.argmax(pi[num_h-1], axis=None), pi[num_h-1].shape)
+        for k in range(num_h - 3, -1, -1):
+            curr_tags[k] = bp[k+2][curr_tags[k+1], curr_tags[k+2]]
+        tags_infer.extend(curr_tags)
     return tags_infer
 
 
