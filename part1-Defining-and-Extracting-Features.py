@@ -323,7 +323,11 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     """
         Extract feature vector in per a given history
         :param history: touple{ppword, pptag, pword, ptag, cword, ctag, nword, ntag}
-        :param word_tags_dict: word\tag dict
+        :param Feature2idClass - in order to be able to reach easily all its methods
+        :param ctag_input
+        :param pptag_input
+        :param ptag input
+        pay attention to the order!!!
             Return a list with all features that are relevant to the given history
     """
     ppword = history[0]
@@ -392,6 +396,11 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
 
 
 def collect_history_quadruples(file_path):
+    """
+
+    :param file_path:
+    :return: table of all histories in length 4 from text (the same number of words in text)
+    """
     history_table = []
     with open(file_path) as f:
         for line_num, line in enumerate(f):
@@ -422,6 +431,13 @@ def collect_history_quadruples(file_path):
 
 
 def generate_table_of_history_tags_features_for_training(my_feature2id_class, history_quadruple_table, tags_list):
+    """
+
+    :param my_feature2id_class:
+    :param history_quadruple_table:
+    :param tags_list:
+    :return: table of features for every ctag X history
+    """
     num_history_quadruple_elements = len(history_quadruple_table)
     amount_of_tags = len(tags_list)
     history_tags_features_table_for_training = np.empty((num_history_quadruple_elements, amount_of_tags), dtype=object)
@@ -439,56 +455,87 @@ def generate_table_of_history_tags_features_for_training(my_feature2id_class, hi
     return history_tags_features_table_for_training
 
 
-def generate_table_of_history_tags_features_for_test(my_feature2id_class, history_quadruple_table, tags_list, text_num_lines):
-    num_history_quadruple_elements = len(history_quadruple_table)
+def get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num):
+    """
+
+    :param my_feature2id_class:
+    :param history_quadruple_table:
+    :param tags_list:
+    :param history_num:
+    :return:
+    1) table of features for every possibility of pptag X ptag X ctag X history that corresponds to history num
+    2) the number of sentence in which this history appears
+    3) boolean - is this the last word in the sentence
+    """
+    # num_history_quadruple_elements = len(history_quadruple_table)
     amount_of_tags = len(tags_list)
-    history_tags_features_table_for_test = np.empty((text_num_lines, num_history_quadruple_elements, amount_of_tags, amount_of_tags, amount_of_tags), dtype=object)
-    table_total_num_different_entries = num_history_quadruple_elements * amount_of_tags * amount_of_tags * amount_of_tags
+
+
     asterisk = '*'
     asterisk_index = tags_list.index(asterisk)
     progress_counter = 0
 
-    for history_index, curr_history_quadruple in enumerate(history_quadruple_table):
-        # if curr word is the beginning of the sentence, allow previous two tags to be asterisk only #
-        if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
-            pptag = asterisk
-            pptag_index = asterisk_index
-            ptag = asterisk
-            ptag_index = asterisk_index
+    curr_history_quadruple = history_quadruple_table[history_num]
+    print(curr_history_quadruple[1])
+
+    # if curr word is the beginning of the sentence, allow previous two tags to be asterisk only #
+    if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
+        print(curr_history_quadruple[1][0])
+        print(curr_history_quadruple[1][2])
+        history_tags_features_table = np.empty((1, 1, amount_of_tags), dtype=object)
+        table_total_num_different_entries = amount_of_tags
+        pptag = asterisk
+        pptag_index = asterisk_index
+        ptag = asterisk
+        ptag_index = asterisk_index
+        for ctag_index, ctag in enumerate(tags_list):
+            curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+            history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
+            progress_counter += 1
+            if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
+                print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
+
+    # if curr word is the second word of the sentence, allow the tag of the word which is 2 words behind to be asterisk only #
+    elif curr_history_quadruple[1][0] == asterisk:
+        print(curr_history_quadruple[1][0])
+        print(curr_history_quadruple[1][2])
+        history_tags_features_table = np.empty((1, amount_of_tags, amount_of_tags), dtype=object)
+        table_total_num_different_entries = amount_of_tags * amount_of_tags
+        pptag = asterisk
+        pptag_index = asterisk_index
+        for ptag_index, ptag in enumerate(tags_list):
             for ctag_index, ctag in enumerate(tags_list):
-                curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class, pptag, ptag, ctag)
-                history_tags_features_table_for_test[curr_history_quadruple[0], history_index, pptag_index, ptag_index, ctag_index] = curr_feature_vector
+                curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+                history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
                 progress_counter += 1
-                if progress_counter % (round(table_total_num_different_entries / 100)) == 0:
+                if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
                     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
-        # if curr word is the second word of the sentence, allow the tag of the word which is 2 words behind to be asterisk only #
-        elif curr_history_quadruple[1][0] == asterisk:
-            pptag = asterisk
-            pptag_index = asterisk_index
+    # for the third word in the sentence and after, no problems for previous tags, therefore insert to table all possibilities #
+    else:
+        history_tags_features_table = np.empty((amount_of_tags, amount_of_tags, amount_of_tags), dtype=object)
+        table_total_num_different_entries = amount_of_tags * amount_of_tags * amount_of_tags
+        for pptag_index, pptag in enumerate(tags_list):
             for ptag_index, ptag in enumerate(tags_list):
                 for ctag_index, ctag in enumerate(tags_list):
-                    curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class, pptag, ptag, ctag)
-                    history_tags_features_table_for_test[curr_history_quadruple[0], history_index, pptag_index, ptag_index, ctag_index] = curr_feature_vector
+                    curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+                    history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
                     progress_counter += 1
-                    if progress_counter % (round(table_total_num_different_entries / 100)) == 0:
+                    if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
                         print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
-        # for the third word in the sentence and after, no problems for previous tags, therefore insert to table all possibilities #
-        else:
-            for pptag_index, pptag in enumerate(tags_list):
-                for ptag_index, ptag in enumerate(tags_list):
-                    for ctag_index, ctag in enumerate(tags_list):
-                        curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class, pptag, ptag, ctag)
-                        history_tags_features_table_for_test[curr_history_quadruple[0], history_index, pptag_index, ptag_index, ctag_index] = curr_feature_vector
-                        progress_counter += 1
-                        if progress_counter % (round(table_total_num_different_entries / 100)) == 0:
-                            print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
-
-    return history_tags_features_table_for_test
+    is_last_word_in_sentence = False
+    if curr_history_quadruple[1][6] == 'STOP':
+        is_last_word_in_sentence = True
+    return history_tags_features_table, curr_history_quadruple[0], is_last_word_in_sentence
 
 
 def get_all_gt_tags_ordered(file_path):
+    """
+
+    :param file_path:
+    :return: all tags in the text, in order of appearance
+    """
     all_tags_gt_ordered = []
     with open(file_path) as f:
         for line in f:
@@ -503,14 +550,11 @@ def get_all_gt_tags_ordered(file_path):
 def main():
     start_time_section_1 = time.time()
     num_features = 8
-    num_occurrences_threshold = 5
+    num_occurrences_threshold = 0
     file_path = os.path.join("data", "train2.wtag")
     text_num_lines = len(open(file_path).readlines())
     history_tag_table_for_test_name = "np_file_table"
     save_table_path = os.path.join("data", history_tag_table_for_test_name)
-
-
-
 
     # generate statistic class and count all features #
     my_feature_statistics_class = FeatureStatisticsClass()
@@ -532,16 +576,20 @@ def main():
 
     # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
     correct_tags_ordered = get_all_gt_tags_ordered(file_path)
-    tags_list = list(set(correct_tags_ordered))  # unique appearance of all possible tags
+    tags_list = []
+    tags_list = list(tags_list)
     tags_list.append('*')
+    tags_list.extend(list(set(correct_tags_ordered)))  # unique appearance of all possible tags
+
     # tags_list.append('STOP')
     correct_tags_ordered_indexed = [tags_list.index(x) for x in correct_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
 
     # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
     history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class, history_quadruple_table, tags_list)
-    history_tags_features_table_for_test = generate_table_of_history_tags_features_for_test(my_feature2id_class, history_quadruple_table, tags_list, text_num_lines)
-    np.save(save_table_path, history_tags_features_table_for_test)
-    check_table = np.load(save_table_path + ".npy")
+    history_num = 0
+    check_history_tags_features_table, line_num, is_last_word_in_sentence = get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num)
+    # np.save(save_table_path, check_history_tags_features_table)
+    # check_table = np.load(save_table_path + ".npy")
     end_time_section_1 = time.time()
     total_time = end_time_section_1 - start_time_section_1
     print(f'total time for section 1 is: {total_time} seconds')
