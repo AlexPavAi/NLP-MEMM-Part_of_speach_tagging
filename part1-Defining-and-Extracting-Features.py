@@ -443,14 +443,14 @@ def generate_table_of_history_tags_features_for_training(my_feature2id_class, hi
     history_tags_features_table_for_training = np.empty((num_history_quadruple_elements, amount_of_tags), dtype=object)
 
     matrix_size = num_history_quadruple_elements * amount_of_tags
-    element_counter = 0
+    # element_counter = 0
     for history_index, curr_history_quadruple in enumerate(history_quadruple_table):
         for ctag_index, ctag in enumerate(tags_list):
             curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class, ctag)
             history_tags_features_table_for_training[history_index, ctag_index] = curr_feature_vector
-            element_counter += 1
-            if element_counter % (round(matrix_size / 10)) == 0:
-                print(f'{round(100 * element_counter / matrix_size)}% finished')
+            # element_counter += 1
+            # if element_counter % (round(matrix_size / 10)) == 0:
+            #     print(f'{round(100 * element_counter / matrix_size)}% finished')
 
     return history_tags_features_table_for_training
 
@@ -469,19 +469,15 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
     """
     # num_history_quadruple_elements = len(history_quadruple_table)
     amount_of_tags = len(tags_list)
-
-
     asterisk = '*'
     asterisk_index = tags_list.index(asterisk)
-    progress_counter = 0
+    # progress_counter = 0
 
     curr_history_quadruple = history_quadruple_table[history_num]
-    print(curr_history_quadruple[1])
+    # print(curr_history_quadruple[1])
 
     # if curr word is the beginning of the sentence, allow previous two tags to be asterisk only #
     if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
-        print(curr_history_quadruple[1][0])
-        print(curr_history_quadruple[1][2])
         history_tags_features_table = np.empty((1, 1, amount_of_tags), dtype=object)
         table_total_num_different_entries = amount_of_tags
         pptag = asterisk
@@ -491,14 +487,12 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
         for ctag_index, ctag in enumerate(tags_list):
             curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
             history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
-            progress_counter += 1
-            if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
-                print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
+            # progress_counter += 1
+            # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
+            #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     # if curr word is the second word of the sentence, allow the tag of the word which is 2 words behind to be asterisk only #
     elif curr_history_quadruple[1][0] == asterisk:
-        print(curr_history_quadruple[1][0])
-        print(curr_history_quadruple[1][2])
         history_tags_features_table = np.empty((1, amount_of_tags, amount_of_tags), dtype=object)
         table_total_num_different_entries = amount_of_tags * amount_of_tags
         pptag = asterisk
@@ -507,9 +501,9 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
             for ctag_index, ctag in enumerate(tags_list):
                 curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
                 history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
-                progress_counter += 1
-                if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
-                    print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
+                # progress_counter += 1
+                # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
+                #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     # for the third word in the sentence and after, no problems for previous tags, therefore insert to table all possibilities #
     else:
@@ -520,9 +514,9 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
                 for ctag_index, ctag in enumerate(tags_list):
                     curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
                     history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
-                    progress_counter += 1
-                    if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
-                        print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
+                    # progress_counter += 1
+                    # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
+                    #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     is_last_word_in_sentence = False
     if curr_history_quadruple[1][6] == 'STOP':
@@ -586,7 +580,7 @@ def main():
 
     # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
     history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class, history_quadruple_table, tags_list)
-    history_num = 0
+    history_num = 65
     check_history_tags_features_table, line_num, is_last_word_in_sentence = get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num)
     # np.save(save_table_path, check_history_tags_features_table)
     # check_table = np.load(save_table_path + ".npy")
