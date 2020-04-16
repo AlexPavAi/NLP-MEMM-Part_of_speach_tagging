@@ -567,7 +567,7 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
 
     # if curr word is the beginning of the sentence, allow previous two tags to be asterisk only #
     if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
-        history_tags_features_table = np.empty((1, 1, amount_of_tags, 8), dtype=int) # Todo replace 8 with number of feature class
+        history_tags_features_table = np.empty((1, 1, amount_of_tags, num_features), dtype=int)
         table_total_num_different_entries = amount_of_tags
         pptag = asterisk
         pptag_index = asterisk_index
@@ -583,7 +583,7 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
 
     # if curr word is the second word of the sentence, allow the tag of the word which is 2 words behind to be asterisk only #
     elif curr_history_quadruple[1][0] == asterisk:
-        history_tags_features_table = np.empty((1, amount_of_tags, amount_of_tags, 8), dtype=int) # Todo replace 8 with number of feature class
+        history_tags_features_table = np.empty((1, amount_of_tags, amount_of_tags, num_features), dtype=int)
         table_total_num_different_entries = amount_of_tags * amount_of_tags
         pptag = asterisk
         pptag_index = asterisk_index
@@ -598,7 +598,7 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
 
     # for the third word in the sentence and after, no problems for previous tags, therefore insert to table all possibilities #
     else:
-        history_tags_features_table = np.empty((amount_of_tags, amount_of_tags, amount_of_tags, 8), dtype=int) # Todo replace 8 with number of feature class
+        history_tags_features_table = np.empty((amount_of_tags, amount_of_tags, amount_of_tags, num_features), dtype=int)
         table_total_num_different_entries = amount_of_tags * amount_of_tags * amount_of_tags
         for pptag_index, pptag in enumerate(tags_list):
             for ptag_index, ptag in enumerate(tags_list):
