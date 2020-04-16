@@ -18,9 +18,18 @@ def tri_mat_to_probs(tri_mat, v):
     return mat
 
 
+def vectorized_tri_mat_to_probs(tri_mat, v):
+    mat = np.sum(v[tri_mat], axis=3)
+    mat = np.exp(mat)
+    sum_exp = np.sum(mat, axis=2).reshape((mat.shape[0], mat.shape[1], 1))
+    mat /= sum_exp
+    return mat
+
+
 def memm_viterbi(num_h, tri_mat_gen, v, time_run=False, iprint=500):
     tags_infer = []
     start = True
+    v = np.append(v, 0)
     if time_run:
         t_mat_gen = 0
         t_prob = 0
@@ -36,7 +45,7 @@ def memm_viterbi(num_h, tri_mat_gen, v, time_run=False, iprint=500):
         if time_run:
             t1 = time.time()
             t_mat_gen += t1-t0
-        q = tri_mat_to_probs(tri_mat, v)
+        q = vectorized_tri_mat_to_probs(tri_mat, v)
         if time_run:
             t2 = time.time()
             t_prob += t2 - t1
