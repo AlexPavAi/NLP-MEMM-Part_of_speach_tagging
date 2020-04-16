@@ -2,6 +2,8 @@ import os
 from collections import OrderedDict
 import numpy as np
 import time
+from part2_optimization import train_from_list
+from part3_Inference_with_MEMM_Viterbi import compute_accuracy
 
 """
 *   Pre-training:
@@ -588,7 +590,14 @@ def main():
     total_time = end_time_section_1 - start_time_section_1
     print(f'total time for section 1 is: {total_time} seconds')
 
-    pass
+    tri_mat_gen = lambda h: get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, h)
+    true_tags = np.array(correct_tags_ordered_indexed)
+    v = train_from_list(history_tags_features_table_for_training, true_tags,
+                    0., time_run=True)
+    compute_accuracy(true_tags, tri_mat_gen, v, time_run=True, iprint=20)
+
+
+
 
 
 if __name__ == '__main__':
