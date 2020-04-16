@@ -397,6 +397,93 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     return features
 
 
+def represent_input_with_features_for_test(history, Feature2idClass, num_features, ctag_input = None, pptag_input = None, ptag_input = None):
+    """
+        Extract feature vector in per a given history
+        :param history: touple{ppword, pptag, pword, ptag, cword, ctag, nword, ntag}
+        :param Feature2idClass - in order to be able to reach easily all its methods
+        :param ctag_input
+        :param pptag_input
+        :param ptag input
+        pay attention to the order!!!
+            Return a list with all features that are relevant to the given history in a numpy array format, for runtime
+            enhancement
+    """
+    ppword = history[0]
+    pptag = history[1]
+    pword = history[2]
+    ptag = history[3]
+    cword = history[4]
+    ctag = history[5]
+    nword = history[6]
+    ntag = history[7]
+
+    if pptag_input:
+        pptag = pptag_input
+    if ptag_input:
+        ptag = ptag_input
+    if ctag_input:
+        ctag = ctag_input
+
+    features = np.ones(num_features, dtype=int)
+    features = features * -1
+    curr_index = 0
+
+    words_tags_dict_100 = Feature2idClass.array_of_words_tags_dicts[0]
+    words_tags_dict_101 = Feature2idClass.array_of_words_tags_dicts[1]
+    words_tags_dict_102 = Feature2idClass.array_of_words_tags_dicts[2]
+    threesome_tags_dict_103 = Feature2idClass.array_of_words_tags_dicts[3]
+    couple_tags_dict_104 = Feature2idClass.array_of_words_tags_dicts[4]
+    tags_dict_105 = Feature2idClass.array_of_words_tags_dicts[5]
+    words_tags_dict_106 = Feature2idClass.array_of_words_tags_dicts[6]
+    words_tags_dict_107 = Feature2idClass.array_of_words_tags_dicts[7]
+
+    # 100 #
+    if (cword, ctag) in words_tags_dict_100:
+        features[curr_index] = words_tags_dict_100[(cword, ctag)]
+
+    # 101 #
+    curr_index += 1
+    three_letter_suffix = cword[-3:]
+    if (three_letter_suffix, ctag) in words_tags_dict_101:
+        features[curr_index] = words_tags_dict_101[(three_letter_suffix, ctag)]
+
+    # 102 #
+    curr_index += 1
+    three_letter_prefix = cword[0:3]
+    if (three_letter_prefix, ctag) in words_tags_dict_102:
+        features[curr_index] = words_tags_dict_102[(three_letter_prefix, ctag)]
+
+    # 103 #
+    curr_index += 1
+    three_consecutive_tags = (pptag, ptag, ctag)
+    if three_consecutive_tags in threesome_tags_dict_103:
+        features[curr_index] = threesome_tags_dict_103[three_consecutive_tags]
+
+    # 104 #
+    curr_index += 1
+    couple_consecutive_tags = (ptag, ctag)
+    if couple_consecutive_tags in couple_tags_dict_104:
+        features[curr_index] = couple_tags_dict_104[couple_consecutive_tags]
+
+    # 105 #
+    curr_index += 1
+    if ctag in tags_dict_105:
+        features[curr_index] = tags_dict_105[ctag]
+
+    # 106 #
+        curr_index += 1
+        if (pword, ctag) in words_tags_dict_106:
+            features[curr_index] = words_tags_dict_106[(pword, ctag)]
+
+    # 107 #
+        curr_index += 1
+        if (nword, ctag) in words_tags_dict_107:
+            features[curr_index] = words_tags_dict_107[(nword, ctag)]
+
+    return features
+
+
 def collect_history_quadruples(file_path):
     """
 
@@ -457,7 +544,7 @@ def generate_table_of_history_tags_features_for_training(my_feature2id_class, hi
     return history_tags_features_table_for_training
 
 
-def get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num):
+def get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num, num_features):
     """
 
     :param my_feature2id_class:
@@ -487,7 +574,8 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
         ptag = asterisk
         ptag_index = asterisk_index
         for ctag_index, ctag in enumerate(tags_list):
-            curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+            # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+            curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1], my_feature2id_class, num_features, ctag, pptag, ptag)
             history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
             # progress_counter += 1
             # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
@@ -501,7 +589,8 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
         pptag_index = asterisk_index
         for ptag_index, ptag in enumerate(tags_list):
             for ctag_index, ctag in enumerate(tags_list):
-                curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+                # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+                curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1], my_feature2id_class, num_features, ctag, pptag, ptag)
                 history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
                 # progress_counter += 1
                 # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
@@ -514,7 +603,8 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
         for pptag_index, pptag in enumerate(tags_list):
             for ptag_index, ptag in enumerate(tags_list):
                 for ctag_index, ctag in enumerate(tags_list):
-                    curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+                    # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
+                    curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1], my_feature2id_class, num_features, ctag, pptag, ptag)
                     history_tags_features_table[pptag_index, ptag_index, ctag_index] = curr_feature_vector
                     # progress_counter += 1
                     # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
@@ -583,14 +673,14 @@ def main():
     # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
     history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class, history_quadruple_table, tags_list)
     history_num = 65
-    check_history_tags_features_table, line_num, is_last_word_in_sentence = get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num)
+    check_history_tags_features_table, line_num, is_last_word_in_sentence = get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num, num_features)
     # np.save(save_table_path, check_history_tags_features_table)
     # check_table = np.load(save_table_path + ".npy")
     end_time_section_1 = time.time()
     total_time = end_time_section_1 - start_time_section_1
     print(f'total time for section 1 is: {total_time} seconds')
 
-    tri_mat_gen = lambda h: get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, h)
+    tri_mat_gen = lambda h: get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, h, num_features)
     true_tags = np.array(correct_tags_ordered_indexed)
     v = train_from_list(history_tags_features_table_for_training, true_tags,
                     0., time_run=True)
