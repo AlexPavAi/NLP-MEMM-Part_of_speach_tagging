@@ -1,9 +1,10 @@
 import os
+import pickle
 from collections import OrderedDict
 import numpy as np
 import time
 from part2_optimization import train_from_list
-from part3_Inference_with_MEMM_Viterbi import compute_accuracy
+from part3_Inference_with_MEMM_Viterbi import compute_accuracy, compute_accuracy_beam
 
 """
 *   Pre-training:
@@ -407,7 +408,9 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     return features
 
 
-def represent_input_with_features_for_test(history, Feature2idClass, num_features, ctag_input = None, pptag_input = None, ptag_input = None):
+def represent_input_with_features_for_test(history, Feature2idClass, num_features,
+                                           history_tags_features_table, ind,
+                                           ctag_input=None, pptag_input=None, ptag_input=None):
     """
         Extract feature vector in per a given history
         :param history: touple{ppword, pptag, pword, ptag, cword, ctag, nword, ntag}
@@ -435,10 +438,8 @@ def represent_input_with_features_for_test(history, Feature2idClass, num_feature
     if ctag_input:
         ctag = ctag_input
 
-    features = np.ones(num_features, dtype=int)
-    features = features * -1
+    features = history_tags_features_table[ind]
     curr_index = 0
-
     words_tags_dict_100 = Feature2idClass.array_of_words_tags_dicts[0]
     words_tags_dict_101 = Feature2idClass.array_of_words_tags_dicts[1]
     words_tags_dict_102 = Feature2idClass.array_of_words_tags_dicts[2]
@@ -453,16 +454,18 @@ def represent_input_with_features_for_test(history, Feature2idClass, num_feature
         features[curr_index] = words_tags_dict_100[(cword, ctag)]
 
     # 101 #
-    curr_index += 1
-    three_letter_suffix = cword[-3:]
-    if (three_letter_suffix, ctag) in words_tags_dict_101:
-        features[curr_index] = words_tags_dict_101[(three_letter_suffix, ctag)]
+    for suffix_length in range(-4, 0):
+        curr_index += 1
+        i_letter_suffix = cword[suffix_length:]
+        if (i_letter_suffix, ctag) in words_tags_dict_101:
+            features[curr_index] = words_tags_dict_101[(i_letter_suffix, ctag)]
 
     # 102 #
-    curr_index += 1
-    three_letter_prefix = cword[0:3]
-    if (three_letter_prefix, ctag) in words_tags_dict_102:
-        features[curr_index] = words_tags_dict_102[(three_letter_prefix, ctag)]
+    for prefix_length in range(1, 5):
+        curr_index += 1
+        i_letter_prefix = cword[:prefix_length]
+        if (i_letter_prefix, ctag) in words_tags_dict_102:
+            features[curr_index] = words_tags_dict_102[(i_letter_prefix, ctag)]
 
     # 103 #
     curr_index += 1
@@ -481,12 +484,12 @@ def represent_input_with_features_for_test(history, Feature2idClass, num_feature
     if ctag in tags_dict_105:
         features[curr_index] = tags_dict_105[ctag]
 
-    # 106 #
+        # 106 #
         curr_index += 1
         if (pword, ctag) in words_tags_dict_106:
             features[curr_index] = words_tags_dict_106[(pword, ctag)]
 
-    # 107 #
+        # 107 #
         curr_index += 1
         if (nword, ctag) in words_tags_dict_107:
             features[curr_index] = words_tags_dict_107[(nword, ctag)]
@@ -554,7 +557,8 @@ def generate_table_of_history_tags_features_for_training(my_feature2id_class, hi
     return history_tags_features_table_for_training
 
 
-def get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num, num_features):
+def get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num,
+                                                num_features):
     """
 
     :param my_feature2id_class:
@@ -577,7 +581,7 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
 
     # if curr word is the beginning of the sentence, allow previous two tags to be asterisk only #
     if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
-        history_tags_features_table = np.empty((1, 1, amount_of_tags, num_features), dtype=int)
+        history_tags_features_table = np.full((1, 1, amount_of_tags, num_features), -1, dtype=np.int32)
         table_total_num_different_entries = amount_of_tags
         pptag = asterisk
         pptag_index = asterisk_index
@@ -585,37 +589,46 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
         ptag_index = asterisk_index
         for ctag_index, ctag in enumerate(tags_list):
             # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
-            curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1], my_feature2id_class, num_features, ctag, pptag, ptag)
-            history_tags_features_table[pptag_index, ptag_index, ctag_index, :] = curr_feature_vector
+            curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1],
+                                                                                 my_feature2id_class, num_features,
+                                                                                 history_tags_features_table,
+                                                                                 (pptag_index, ptag_index, ctag_index),
+                                                                                 ctag, pptag, ptag)
             # progress_counter += 1
             # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
             #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     # if curr word is the second word of the sentence, allow the tag of the word which is 2 words behind to be asterisk only #
     elif curr_history_quadruple[1][0] == asterisk:
-        history_tags_features_table = np.empty((1, amount_of_tags, amount_of_tags, num_features), dtype=int)
+        history_tags_features_table = np.full((1, amount_of_tags, amount_of_tags, num_features), -1, dtype=np.int32)
         table_total_num_different_entries = amount_of_tags * amount_of_tags
         pptag = asterisk
         pptag_index = asterisk_index
         for ptag_index, ptag in enumerate(tags_list):
             for ctag_index, ctag in enumerate(tags_list):
                 # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
-                curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1], my_feature2id_class, num_features, ctag, pptag, ptag)
-                history_tags_features_table[pptag_index, ptag_index, ctag_index, :] = curr_feature_vector
+                curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1],
+                                                                                 my_feature2id_class, num_features,
+                                                                                 history_tags_features_table,
+                                                                                 (pptag_index, ptag_index, ctag_index),
+                                                                                 ctag, pptag, ptag)
                 # progress_counter += 1
                 # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
                 #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     # for the third word in the sentence and after, no problems for previous tags, therefore insert to table all possibilities #
     else:
-        history_tags_features_table = np.empty((amount_of_tags, amount_of_tags, amount_of_tags, num_features), dtype=int)
+        history_tags_features_table = np.full((amount_of_tags, amount_of_tags, amount_of_tags, num_features), -1, dtype=np.int32)
         table_total_num_different_entries = amount_of_tags * amount_of_tags * amount_of_tags
         for pptag_index, pptag in enumerate(tags_list):
             for ptag_index, ptag in enumerate(tags_list):
                 for ctag_index, ctag in enumerate(tags_list):
                     # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
-                    curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1], my_feature2id_class, num_features, ctag, pptag, ptag)
-                    history_tags_features_table[pptag_index, ptag_index, ctag_index, :] = curr_feature_vector
+                    curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1],
+                                                                                 my_feature2id_class, num_features,
+                                                                                 history_tags_features_table,
+                                                                                 (pptag_index, ptag_index, ctag_index),
+                                                                                 ctag, pptag, ptag)
                     # progress_counter += 1
                     # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
                     #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
@@ -624,6 +637,42 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
     if curr_history_quadruple[1][6] == 'STOP':
         is_last_word_in_sentence = True
     return history_tags_features_table, curr_history_quadruple[0], is_last_word_in_sentence
+
+
+def get_beam_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table,
+                                               tags_list, history_num, num_features, requests, beam_width):
+    """
+
+    :param my_feature2id_class:
+    :param history_quadruple_table:
+    :param tags_list:
+    :param history_num:
+    :return:
+    1) table of features for every possibility of pptag X ptag X ctag X history that corresponds to history num
+    2) the number of sentence in which this history appears
+    3) boolean - is this the last word in the sentence
+    """
+    # num_history_quadruple_elements = len(history_quadruple_table)
+    amount_of_tags = len(tags_list)
+    asterisk = '*'
+    curr_history_quadruple = history_quadruple_table[history_num]
+    if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
+        num_pp, num_p = 1, 1
+    elif curr_history_quadruple[1][0] == asterisk:
+        num_pp, num_p = 1, amount_of_tags
+    else:
+        num_pp, num_p = amount_of_tags, amount_of_tags
+    history_tags_features_table = np.full((beam_width, amount_of_tags, num_features), -1, dtype=np.int32)
+    for i, (pptag_index, ptag_index) in enumerate(requests):
+        for ctag_index, ctag in enumerate(tags_list):
+            pptag, ptag = tags_list[pptag_index], tags_list[ptag_index]
+            represent_input_with_features_for_test(curr_history_quadruple[1],
+                                                   my_feature2id_class, num_features,
+                                                   history_tags_features_table,
+                                                   (i, ctag_index),
+                                                   ctag, pptag, ptag)
+    is_last_word_in_sentence = (curr_history_quadruple[1][6] == 'STOP')
+    return history_tags_features_table, curr_history_quadruple[0], is_last_word_in_sentence, num_pp, num_p
 
 
 def get_all_gt_tags_ordered(file_path):
@@ -645,12 +694,10 @@ def get_all_gt_tags_ordered(file_path):
 
 def main():
     start_time_section_1 = time.time()
-    num_features = 8
+    num_features = 14
     num_occurrences_threshold = 0
     file_path = os.path.join("data", "train2.wtag")
-    text_num_lines = len(open(file_path).readlines())
-    history_tag_table_for_test_name = "np_file_table"
-    save_table_path = os.path.join("data", history_tag_table_for_test_name)
+    test_path = os.path.join("data", "test1.wtag")
 
     # generate statistic class and count all features #
     my_feature_statistics_class = FeatureStatisticsClass()
@@ -667,34 +714,41 @@ def main():
     my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_threshold)
     my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features)
 
-    # generate a history quadruple table #
+    # generate a history quadruple table for train #
     history_quadruple_table = collect_history_quadruples(file_path)
 
+    # generate a history quadruple table for test #
+    test_history_quadruple_table = collect_history_quadruples(test_path)
+
     # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
-    correct_tags_ordered = get_all_gt_tags_ordered(file_path)
+    train_tags_ordered = get_all_gt_tags_ordered(file_path)
     tags_list = []
     tags_list = list(tags_list)
     tags_list.append('*')
-    tags_list.extend(list(set(correct_tags_ordered)))  # unique appearance of all possible tags
+    tags_list.extend(list(set(train_tags_ordered)))  # unique appearance of all possible tags
+    train_correct_tags_ordered_indexed = [tags_list.index(x) for x in train_tags_ordered]
 
     # tags_list.append('STOP')
-    correct_tags_ordered_indexed = [tags_list.index(x) for x in correct_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
+    # test tags
+    test_tags_ordered = get_all_gt_tags_ordered(test_path)
+    test_correct_tags_ordered_indexed = [tags_list.index(x) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
 
     # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
-    history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class, history_quadruple_table, tags_list)
-    history_num = 65
-    check_history_tags_features_table, line_num, is_last_word_in_sentence = get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, history_num, num_features)
-    # np.save(save_table_path, check_history_tags_features_table)
-    # check_table = np.load(save_table_path + ".npy")
+    history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
+                                                                                                    history_quadruple_table,
+                                                                                                    tags_list)
     end_time_section_1 = time.time()
     total_time = end_time_section_1 - start_time_section_1
     print(f'total time for section 1 is: {total_time} seconds')
 
-    tri_mat_gen = lambda h: get_table_of_features_for_given_history_num(my_feature2id_class, history_quadruple_table, tags_list, h, num_features)
-    true_tags = np.array(correct_tags_ordered_indexed)
-    v = train_from_list(history_tags_features_table_for_training, true_tags,
-                    0., time_run=True)
-    compute_accuracy(true_tags, tri_mat_gen, v, time_run=True, iprint=20)
+    mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
+                                                                                         test_history_quadruple_table,
+                                                                                         tags_list, h, num_features,
+                                                                                     requests, beam_width)
+    true_tags_train = np.array(train_correct_tags_ordered_indexed)
+    true_tags_test = np.array(test_correct_tags_ordered_indexed)
+    v = train_from_list(history_tags_features_table_for_training, true_tags_train, 1., time_run=True)
+    print(compute_accuracy_beam(true_tags_test, mat_gen, v, 1, time_run=True, iprint=500))
 
 
 
