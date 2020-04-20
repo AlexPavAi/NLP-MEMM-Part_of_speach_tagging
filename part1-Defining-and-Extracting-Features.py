@@ -62,7 +62,7 @@ class FeatureStatisticsClass:
         """
             Extract out of text all suffixes with length 3/tag pairs
             :param file_path: full path of the file to read
-                return all suffixes with length 3/tag pairs with index of appearance
+                return all suffixes with length up to 4/tag pairs with index of appearance
         """
         with open(file_path) as f:
             for line in f:
@@ -70,18 +70,21 @@ class FeatureStatisticsClass:
                 del splited_words[-1]
                 for word_idx in range(len(splited_words)):
                     cur_word, cur_tag = splited_words[word_idx].split('_')
-                    if len(cur_word) > 3:
-                        three_letter_suffix = cur_word[-3:]
-                        if (three_letter_suffix, cur_tag) not in self.array_count_dicts[1]:
-                            self.array_count_dicts[1][(three_letter_suffix, cur_tag)] = 1
-                        else:
-                            self.array_count_dicts[1][(three_letter_suffix, cur_tag)] += 1
+                    if len(cur_word) > 4:
+                        for suffix_length in range(-4, 0):
+                            i_letter_suffix = cur_word[suffix_length:]
+                            if (i_letter_suffix, cur_tag) not in self.array_count_dicts[1]:
+                                self.array_count_dicts[1][(i_letter_suffix, cur_tag)] = 1
+                            else:
+                                self.array_count_dicts[1][(i_letter_suffix, cur_tag)] += 1
+
+
 
     def get_word_tag_pair_count_102(self, file_path):  # currently checks only if word begins with "pre"
         """
             Extract out of text all prefixes with length 3/tag pairs
             :param file_path: full path of the file to read
-                return all prefixes with length 3/tag pairs with index of appearance
+                return all prefixes with length up to 4/tag pairs with index of appearance
         """
         with open(file_path) as f:
             for line in f:
@@ -89,12 +92,13 @@ class FeatureStatisticsClass:
                 del splited_words[-1]
                 for word_idx in range(len(splited_words)):
                     cur_word, cur_tag = splited_words[word_idx].split('_')
-                    if len(cur_word) > 3:
-                        three_letter_prefix = cur_word[0:3]
-                        if (three_letter_prefix, cur_tag) not in self.array_count_dicts[2]:
-                            self.array_count_dicts[2][(three_letter_prefix, cur_tag)] = 1
-                        else:
-                            self.array_count_dicts[2][(three_letter_prefix, cur_tag)] += 1
+                    if len(cur_word) > 4:
+                        for prefix_length in range(1, 5):
+                            i_letter_prefix = cur_word[:prefix_length]
+                            if (i_letter_prefix, cur_tag) not in self.array_count_dicts[2]:
+                                self.array_count_dicts[2][(i_letter_prefix, cur_tag)] = 1
+                            else:
+                                self.array_count_dicts[2][(i_letter_prefix, cur_tag)] += 1
 
     def get_tag_threesome_count_103(self, file_path):
         """
@@ -232,24 +236,28 @@ class Feature2idClass:
                                 self.n_tag_pairs += 1
 
                         elif i == 1:
-                            if len(cur_word) > 3:
-                                three_letter_suffix = cur_word[-3:]
+                            if len(cur_word) > 4:
 
-                                if ((three_letter_suffix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
-                                 and (self.feature_statistics.array_count_dicts[i][(three_letter_suffix, cur_tag)] >= self.threshold):
-                                    self.array_of_words_tags_dicts[i][(three_letter_suffix, cur_tag)] = self.featureIDX
-                                    self.featureIDX += 1
-                                    self.n_tag_pairs += 1
+                                for suffix_length in range(-4, 0):  # suffix length in absolute value
+                                    i_letter_suffix = cur_word[suffix_length:]
+
+                                    if ((i_letter_suffix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
+                                    and (self.feature_statistics.array_count_dicts[i][(i_letter_suffix, cur_tag)] >= self.threshold):
+                                        self.array_of_words_tags_dicts[i][(i_letter_suffix, cur_tag)] = self.featureIDX
+                                        self.featureIDX += 1
+                                        self.n_tag_pairs += 1
 
                         elif i == 2:
-                            if len(cur_word) > 3:
-                                three_letter_prefix = cur_word[0:3]
-                                if ((three_letter_prefix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
-                                        and (self.feature_statistics.array_count_dicts[i][
-                                                 (three_letter_prefix, cur_tag)] >= self.threshold):
-                                    self.array_of_words_tags_dicts[i][(three_letter_prefix, cur_tag)] = self.featureIDX
-                                    self.featureIDX += 1
-                                    self.n_tag_pairs += 1
+                            if len(cur_word) > 4:
+                                for prefix_length in range(1, 5):
+                                    i_letter_prefix = cur_word[:prefix_length]
+
+                                    if ((i_letter_prefix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
+                                            and (self.feature_statistics.array_count_dicts[i][
+                                                     (i_letter_prefix, cur_tag)] >= self.threshold):
+                                        self.array_of_words_tags_dicts[i][(i_letter_prefix, cur_tag)] = self.featureIDX
+                                        self.featureIDX += 1
+                                        self.n_tag_pairs += 1
 
                         elif i == 3:
                             if word_idx >= 2:
@@ -363,14 +371,16 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
         features.append(words_tags_dict_100[(cword, ctag)])
 
     # 101 #
-    three_letter_suffix = cword[-3:]
-    if (three_letter_suffix, ctag) in words_tags_dict_101:
-        features.append(words_tags_dict_101[(three_letter_suffix, ctag)])
+    for suffix_length in range(-4, 0):
+        i_letter_suffix = cword[suffix_length:]
+        if (i_letter_suffix, ctag) in words_tags_dict_101:
+            features.append(words_tags_dict_101[(i_letter_suffix, ctag)])
 
     # 102 #
-    three_letter_prefix = cword[0:3]
-    if (three_letter_prefix, ctag) in words_tags_dict_102:
-        features.append(words_tags_dict_102[(three_letter_prefix, ctag)])
+    for prefix_length in range(1, 5):
+        i_letter_prefix = cword[:prefix_length]
+        if (i_letter_prefix, ctag) in words_tags_dict_102:
+            features.append(words_tags_dict_102[(i_letter_prefix, ctag)])
 
     # 103 #
     three_consecutive_tags = (pptag, ptag, ctag)
