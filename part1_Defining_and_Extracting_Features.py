@@ -508,17 +508,27 @@ def collect_history_quadruples(file_path):
         for line_num, line in enumerate(f):
             splited_words = line.split(' ')
             del splited_words[-1]
-            for word_idx in range(0, len(splited_words)):
+            num_words_in_line = len(splited_words)
+            for word_idx in range(0, num_words_in_line):
                 if word_idx == 0:
                     ppword, pptag = ('*', '*')
                     pword, ptag = ('*', '*')
-                    nword, ntag = splited_words[word_idx + 1].split('_')
+                    if word_idx == num_words_in_line - 1:
+                        nword, ntag = ('STOP', 'STOP')
+                    else:
+                        nword, ntag = splited_words[word_idx + 1].split('_')
+
                 elif word_idx == 1:
                     ppword, pptag = ('*', '*')
                     pword, ptag = splited_words[word_idx - 1].split('_')
-                    nword, ntag = splited_words[word_idx + 1].split('_')
-                elif word_idx == len(splited_words) - 1:
+                    if word_idx == num_words_in_line - 1:
+                        nword, ntag = ('STOP', 'STOP')
+                    else:
+                        nword, ntag = splited_words[word_idx + 1].split('_')
+
+                elif word_idx == num_words_in_line - 1:
                     nword, ntag = ('STOP', 'STOP')
+
                 else:
                     ppword, pptag = splited_words[word_idx - 2].split('_')
                     pword, ptag = splited_words[word_idx - 1].split('_')
@@ -692,12 +702,21 @@ def get_all_gt_tags_ordered(file_path):
     return all_tags_gt_ordered
 
 
+def find_differences_in_possible_tags(file_path1, file_path2):
+    tags1 = set(get_all_gt_tags_ordered(file_path1))
+    tags2 = set(get_all_gt_tags_ordered(file_path2))
+    diff = tags2 - tags1
+    return tags1,tags2, diff
+
+
+
 def main():
     start_time_section_1 = time.time()
     num_features = 14
     num_occurrences_threshold = 0
-    file_path = os.path.join("data", "train2.wtag")
+    file_path = os.path.join("data", "train1.wtag")
     test_path = os.path.join("data", "test1.wtag")
+    # tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
 
     # generate statistic class and count all features #
     my_feature_statistics_class = FeatureStatisticsClass()
@@ -749,9 +768,6 @@ def main():
     true_tags_test = np.array(test_correct_tags_ordered_indexed)
     v = train_from_list(history_tags_features_table_for_training, true_tags_train, 1., time_run=True)
     print(compute_accuracy_beam(true_tags_test, mat_gen, v, 1, time_run=True, iprint=500))
-
-
-
 
 
 if __name__ == '__main__':
