@@ -722,7 +722,7 @@ def main():
     start_time_section_1 = time.time()
     num_features = 14
     num_occurrences_threshold = 0
-    file_path = os.path.join("data", "train1.wtag")
+    file_path = os.path.join("data", "train2.wtag")
     test_path = os.path.join("data", "test1.wtag")
     tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
 
@@ -752,19 +752,19 @@ def main():
     tags_list = []
     tags_list = list(tags_list)
     tags_list.append('*')
-    tags_list.extend(list(set(train_tags_ordered)))  # unique appearance of all possible tags
+    tag_set = set(train_tags_ordered)
+    tag_to_ind = {'*': 0}
+    for i, tag in enumerate(tag_set):
+        tags_list.append(tag)
+        tag_to_ind[tag] = i+1
 
 
-    train_correct_tags_ordered_indexed = [tags_list.index(x) for x in train_tags_ordered]
+    train_correct_tags_ordered_indexed = [tag_to_ind[x] for x in train_tags_ordered]
 
     # tags_list.append('STOP')
     # test tags
     test_tags_ordered = get_all_gt_tags_ordered(test_path)
-    tags_list_test = []
-    tags_list_test = list(tags_list_test)
-    tags_list_test.append('*')
-    tags_list_test.extend(list(set(test_tags_ordered)))  # unique appearance of all possible tags
-    test_correct_tags_ordered_indexed = [tags_list_test.index(x) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
+    test_correct_tags_ordered_indexed = [tag_to_ind.get(x, -1) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
 
     # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
     history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
@@ -777,10 +777,11 @@ def main():
     mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
                                                                                          test_history_quadruple_table,
                                                                                          tags_list, h, num_features,
-                                                                                     requests, beam_width)
+                                                                                         requests, beam_width)
     true_tags_train = np.array(train_correct_tags_ordered_indexed)
     true_tags_test = np.array(test_correct_tags_ordered_indexed)
     v = train_from_list(history_tags_features_table_for_training, true_tags_train, 1., time_run=True)
+
     print(compute_accuracy_beam(true_tags_test, mat_gen, v, 1, time_run=True, iprint=500))
 
 
