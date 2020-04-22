@@ -722,7 +722,7 @@ def main():
     start_time_section_1 = time.time()
     num_features = 14
     num_occurrences_threshold = 0
-    file_path = os.path.join("data", "test1.wtag")
+    file_path = os.path.join("data", "train1.wtag")
     test_path = os.path.join("data", "test1.wtag")
     tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
 
@@ -753,12 +753,18 @@ def main():
     tags_list = list(tags_list)
     tags_list.append('*')
     tags_list.extend(list(set(train_tags_ordered)))  # unique appearance of all possible tags
+
+
     train_correct_tags_ordered_indexed = [tags_list.index(x) for x in train_tags_ordered]
 
     # tags_list.append('STOP')
     # test tags
     test_tags_ordered = get_all_gt_tags_ordered(test_path)
-    test_correct_tags_ordered_indexed = [tags_list.index(x) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
+    tags_list_test = []
+    tags_list_test = list(tags_list_test)
+    tags_list_test.append('*')
+    tags_list_test.extend(list(set(test_tags_ordered)))  # unique appearance of all possible tags
+    test_correct_tags_ordered_indexed = [tags_list_test.index(x) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
 
     # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
     history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
