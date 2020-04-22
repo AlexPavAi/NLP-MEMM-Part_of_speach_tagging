@@ -526,18 +526,24 @@ def collect_history_quadruples(file_path):
                     else:
                         nword, ntag = splited_words[word_idx + 1].split('_')
 
-                elif word_idx == num_words_in_line - 1:
-                    nword, ntag = ('STOP', 'STOP')
-
                 else:
                     ppword, pptag = splited_words[word_idx - 2].split('_')
                     pword, ptag = splited_words[word_idx - 1].split('_')
-                    nword, ntag = splited_words[word_idx + 1].split('_')
+                    if word_idx == num_words_in_line - 1:
+                        nword, ntag = ('STOP', 'STOP')
+                    else:
+                        nword, ntag = splited_words[word_idx + 1].split('_')
 
                 cword, ctag = splited_words[word_idx].split('_')
 
+
                 curr_quadruple_history = (ppword, pptag, pword, ptag, cword, ctag, nword, ntag)
                 history_table.append((line_num, curr_quadruple_history))
+                # if line_num == 322:
+                #     print(word_idx)
+                #     print(splited_words)
+                #     print(curr_quadruple_history)
+
 
     return history_table
 
@@ -588,7 +594,9 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
 
     curr_history_quadruple = history_quadruple_table[history_num]
     # print(curr_history_quadruple[1])
-
+    # print(curr_history_quadruple)
+    # if curr_history_quadruple[0] == 322:
+    #     print(curr_history_quadruple)
     # if curr word is the beginning of the sentence, allow previous two tags to be asterisk only #
     if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
         history_tags_features_table = np.full((1, 1, amount_of_tags, num_features), -1, dtype=np.int32)
@@ -714,9 +722,9 @@ def main():
     start_time_section_1 = time.time()
     num_features = 14
     num_occurrences_threshold = 0
-    file_path = os.path.join("data", "train1.wtag")
+    file_path = os.path.join("data", "test1.wtag")
     test_path = os.path.join("data", "test1.wtag")
-    # tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
+    tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
 
     # generate statistic class and count all features #
     my_feature_statistics_class = FeatureStatisticsClass()
