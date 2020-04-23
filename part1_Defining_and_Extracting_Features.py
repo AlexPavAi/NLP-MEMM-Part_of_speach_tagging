@@ -33,13 +33,22 @@ This is done at pre-training step.
 
 class FeatureStatisticsClass:
 
-    def __init__(self, num_features):
+    def __init__(self, num_dicts):
         self.n_total_features = 0  # Total number of features accumulated
-
+        self.num_features = num_dicts
         # Init all features dictionaries
         self.array_count_dicts = []
-        for i in range(0, num_features):
+        for i in range(0, num_dicts):
             self.array_count_dicts.append(OrderedDict())
+
+    def get_percentiles(self, percentile):
+        percentiles = []
+        for curr_dict in self.array_count_dicts:
+            all_values = curr_dict.values()
+            all_values_np = np.fromiter(all_values, dtype=int)
+            curr_percentile = np.percentile(all_values_np, percentile)
+            percentiles.append(curr_percentile)
+        return percentiles
 
     def get_word_tag_pair_count_100(self, file_path):
         """
@@ -223,7 +232,30 @@ class FeatureStatisticsClass:
                     else:
                         self.array_count_dicts[curr_dict][tag_and_two_previous_words] += 1
 
-
+    def get_tag_word_count_f8(self, file_path, all_words):
+        """
+            Extract out of threesomes of consecutive tags
+            :param file_path: full path of the file to read
+            :param all_words: a list containing all different words in corpus
+                return all word-tag pair, s.t. word doesn't appear in previous two words
+        """
+        curr_dict = 9
+        with open(file_path) as f:
+            for line in f:
+                splited_words = line.split(' ')
+                del splited_words[-1]
+                for word_idx in range(2, len(
+                        splited_words)):  # pay attention: starting from idx 2 due to the need of having two previous tags
+                    ppword, pptag = splited_words[word_idx - 2].split('_')
+                    pword, ptag = splited_words[word_idx - 1].split('_')
+                    cword, ctag = splited_words[word_idx].split('_')
+                    for word in all_words:
+                        if ppword != word and pword != word:
+                            word_and_tag = (word, ctag)
+                            if word_and_tag not in self.array_count_dicts[curr_dict]:
+                                self.array_count_dicts[curr_dict][word_and_tag] = 1
+                            else:
+                                self.array_count_dicts[curr_dict][word_and_tag] += 1
 """### Indexing features 
 After getting feature statistics, each feature is given an index to represent it. We include only features that appear more times in text than the lower bound - 'threshold'
 """
@@ -231,9 +263,9 @@ After getting feature statistics, each feature is given an index to represent it
 
 class Feature2idClass:
 
-    def __init__(self, feature_statistics, threshold, num_feautres):
+    def __init__(self, feature_statistics, thresholds, num_feautres):
         self.feature_statistics = feature_statistics  # statistics class, for each feature gives empirical counts
-        self.threshold = threshold  # feature count threshold - empirical count must be higher than this
+        self.thresholds = thresholds  # feature count threshold - empirical count must be higher than this
 
         self.n_total_features = 0  # Total number of features accumulated
         self.n_tag_pairs = 0  # Number of Word\Tag pairs features
@@ -261,7 +293,7 @@ class Feature2idClass:
 
                         if i == 0:
                             if ((cur_word, cur_tag) not in self.array_of_words_tags_dicts[i]) \
-                             and (self.feature_statistics.array_count_dicts[i][(cur_word, cur_tag)] >= self.threshold):
+                             and (self.feature_statistics.array_count_dicts[i][(cur_word, cur_tag)] >= self.thresholds[i]):
                                 self.array_of_words_tags_dicts[i][(cur_word, cur_tag)] = self.featureIDX
                                 self.featureIDX += 1
                                 self.n_tag_pairs += 1
@@ -273,7 +305,7 @@ class Feature2idClass:
                                     i_letter_suffix = cur_word[suffix_length:]
 
                                     if ((i_letter_suffix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
-                                    and (self.feature_statistics.array_count_dicts[i][(i_letter_suffix, cur_tag)] >= self.threshold):
+                                    and (self.feature_statistics.array_count_dicts[i][(i_letter_suffix, cur_tag)] >= self.thresholds[i]):
                                         self.array_of_words_tags_dicts[i][(i_letter_suffix, cur_tag)] = self.featureIDX
                                         self.featureIDX += 1
                                         self.n_tag_pairs += 1
@@ -285,7 +317,7 @@ class Feature2idClass:
 
                                     if ((i_letter_prefix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
                                             and (self.feature_statistics.array_count_dicts[i][
-                                                     (i_letter_prefix, cur_tag)] >= self.threshold):
+                                                     (i_letter_prefix, cur_tag)] >= self.thresholds[i]):
                                         self.array_of_words_tags_dicts[i][(i_letter_prefix, cur_tag)] = self.featureIDX
                                         self.featureIDX += 1
                                         self.n_tag_pairs += 1
@@ -299,7 +331,7 @@ class Feature2idClass:
 
                                 if (three_consecutive_tags not in self.array_of_words_tags_dicts[i]) \
                                         and (self.feature_statistics.array_count_dicts[i][
-                                                 three_consecutive_tags] >= self.threshold):
+                                                 three_consecutive_tags] >= self.thresholds[i]):
                                     self.array_of_words_tags_dicts[i][three_consecutive_tags] = self.featureIDX
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
@@ -312,7 +344,7 @@ class Feature2idClass:
 
                                 if (couple_consecutive_tags not in self.array_of_words_tags_dicts[i]) \
                                         and (self.feature_statistics.array_count_dicts[i][
-                                                 couple_consecutive_tags] >= self.threshold):
+                                                 couple_consecutive_tags] >= self.thresholds[i]):
                                     self.array_of_words_tags_dicts[i][couple_consecutive_tags] = self.featureIDX
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
@@ -321,7 +353,7 @@ class Feature2idClass:
                                 cword, ctag = splited_words[word_idx].split('_')
 
                                 if (ctag not in self.array_of_words_tags_dicts[i]) \
-                                        and (self.feature_statistics.array_count_dicts[i][ctag] >= self.threshold):
+                                        and (self.feature_statistics.array_count_dicts[i][ctag] >= self.thresholds[i]):
                                     self.array_of_words_tags_dicts[i][ctag] = self.featureIDX
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
@@ -330,7 +362,7 @@ class Feature2idClass:
                             if word_idx > 0:
                                 prev_word, prev_tag = splited_words[word_idx - 1].split('_')
                                 if ((prev_word, cur_tag) not in self.array_of_words_tags_dicts[i]) \
-                                 and (self.feature_statistics.array_count_dicts[i][(prev_word, cur_tag)] >= self.threshold):
+                                 and (self.feature_statistics.array_count_dicts[i][(prev_word, cur_tag)] >= self.thresholds[i]):
                                     self.array_of_words_tags_dicts[i][(prev_word, cur_tag)] = self.featureIDX
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
@@ -339,7 +371,7 @@ class Feature2idClass:
                             if word_idx < len(splited_words) - 1:
                                 next_word, next_tag = splited_words[word_idx + 1].split('_')
                                 if ((next_word, cur_tag) not in self.array_of_words_tags_dicts[i]) \
-                                 and (self.feature_statistics.array_count_dicts[i][(next_word, cur_tag)] >= self.threshold):
+                                 and (self.feature_statistics.array_count_dicts[i][(next_word, cur_tag)] >= self.thresholds[i]):
                                     self.array_of_words_tags_dicts[i][(next_word, cur_tag)] = self.featureIDX
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
@@ -353,10 +385,12 @@ class Feature2idClass:
 
                                 if (tag_and_previous_two_tags not in self.array_of_words_tags_dicts[i]) \
                                         and (self.feature_statistics.array_count_dicts[i][
-                                                 tag_and_previous_two_tags] >= self.threshold):
+                                                 tag_and_previous_two_tags] >= self.thresholds[i]):
                                     self.array_of_words_tags_dicts[i][tag_and_previous_two_tags] = self.featureIDX
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
+
+
                         else:
                             pass
 
@@ -412,6 +446,7 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     words_tags_dict_107 = Feature2idClass.array_of_words_tags_dicts[7]
     tag_and_previous_two_words_dict_f3 = Feature2idClass.array_of_words_tags_dicts[8]
 
+
     # 100 #
     if (cword, ctag) in words_tags_dict_100:
         features.append(words_tags_dict_100[(cword, ctag)])
@@ -454,6 +489,8 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     tag_and_previous_two_words = (ppword, pword, ctag)
     if tag_and_previous_two_words in tag_and_previous_two_words_dict_f3:
         features.append(tag_and_previous_two_words_dict_f3[tag_and_previous_two_words])
+
+
 
 
     return features
@@ -770,6 +807,22 @@ def get_all_gt_tags_ordered(file_path):
                 all_tags_gt_ordered.append(cur_tag)
     return all_tags_gt_ordered
 
+def get_all_words_ordered(file_path):
+    """
+
+    :param file_path:
+    :return: all tags in the text, in order of appearance
+    """
+    all_words_ordered = []
+    with open(file_path) as f:
+        for line in f:
+            splited_words = line.split(' ')
+            del splited_words[-1]
+            for word_idx in range(len(splited_words)):
+                cur_word, cur_tag = splited_words[word_idx].split('_')
+                all_words_ordered.append(cur_word)
+    return all_words_ordered
+
 
 def find_differences_in_possible_tags(file_path1, file_path2):
     tags1 = set(get_all_gt_tags_ordered(file_path1))
@@ -781,13 +834,16 @@ def find_differences_in_possible_tags(file_path1, file_path2):
 def main():
     start_time_section_1 = time.time()
     num_features = 15
-    num_occurrences_threshold = 0
+    num_dicts = num_features - 6
+
     file_path = os.path.join("data", "train2.wtag")
     test_path = os.path.join("data", "test1.wtag")
     tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
+    # all_words_in_text = get_all_words_ordered(file_path)
+    # all_words_unique = set(all_words_in_text)
 
     # generate statistic class and count all features #
-    my_feature_statistics_class = FeatureStatisticsClass(num_features)
+    my_feature_statistics_class = FeatureStatisticsClass(num_dicts)
     my_feature_statistics_class.get_word_tag_pair_count_100(file_path)
     my_feature_statistics_class.get_word_tag_pair_count_101(file_path)
     my_feature_statistics_class.get_word_tag_pair_count_102(file_path)
@@ -798,8 +854,13 @@ def main():
     my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
     my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
 
+    best_percentile = 0
+
+    percentiles = my_feature_statistics_class.get_percentiles(best_percentile)
+    num_occurrences_thresholds = percentiles
+
     # generate indices for all features that appear above a specified threshold #
-    my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_threshold, num_features)
+    my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features)
     my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features)
 
     # generate a history quadruple table for train #
@@ -841,7 +902,9 @@ def main():
                                                                                          requests, beam_width)
     true_tags_train = np.array(train_correct_tags_ordered_indexed)
     true_tags_test = np.array(test_correct_tags_ordered_indexed)
-    v = train_from_list(history_tags_features_table_for_training, true_tags_train, 1., time_run=True)
+    alpha = 1.
+    alpha = 0
+    v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
 
     print(compute_accuracy_beam(true_tags_test, mat_gen, v, 1, time_run=True, iprint=500))
     print("")
