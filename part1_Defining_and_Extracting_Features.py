@@ -69,7 +69,7 @@ class FeatureStatisticsClass:
                         self.array_count_dicts[curr_dict][(cur_word, cur_tag)] += 1
 
     # --- ADD YOURE CODE BELOW --- #
-    def get_word_tag_pair_count_101(self, file_path):
+    def get_word_tag_pair_count_101(self, file_path, min_length_of_suffix, max_length_of_suffix):
         """
             Extract out of text all suffixes with length 3/tag pairs
             :param file_path: full path of the file to read
@@ -82,8 +82,8 @@ class FeatureStatisticsClass:
                 del splited_words[-1]
                 for word_idx in range(len(splited_words)):
                     cur_word, cur_tag = splited_words[word_idx].split('_')
-                    if len(cur_word) > 4:
-                        for suffix_length in range(-4, 0):
+                    if len(cur_word) > max_length_of_suffix:
+                        for suffix_length in range(- max_length_of_suffix, 1 - min_length_of_suffix):
                             i_letter_suffix = cur_word[suffix_length:]
                             if (i_letter_suffix, cur_tag) not in self.array_count_dicts[curr_dict]:
                                 self.array_count_dicts[curr_dict][(i_letter_suffix, cur_tag)] = 1
@@ -92,7 +92,7 @@ class FeatureStatisticsClass:
 
 
 
-    def get_word_tag_pair_count_102(self, file_path):  # currently checks only if word begins with "pre"
+    def get_word_tag_pair_count_102(self, file_path, min_length_of_prefix, max_length_of_prefix):  # currently checks only if word begins with "pre"
         """
             Extract out of text all prefixes with length 3/tag pairs
             :param file_path: full path of the file to read
@@ -105,8 +105,8 @@ class FeatureStatisticsClass:
                 del splited_words[-1]
                 for word_idx in range(len(splited_words)):
                     cur_word, cur_tag = splited_words[word_idx].split('_')
-                    if len(cur_word) > 4:
-                        for prefix_length in range(1, 5):
+                    if len(cur_word) > max_length_of_prefix:
+                        for prefix_length in range(min_length_of_prefix, max_length_of_prefix + 1):
                             i_letter_prefix = cur_word[:prefix_length]
                             if (i_letter_prefix, cur_tag) not in self.array_count_dicts[curr_dict]:
                                 self.array_count_dicts[curr_dict][(i_letter_prefix, cur_tag)] = 1
@@ -256,6 +256,27 @@ class FeatureStatisticsClass:
                                 self.array_count_dicts[curr_dict][word_and_tag] = 1
                             else:
                                 self.array_count_dicts[curr_dict][word_and_tag] += 1
+
+
+    def get_tag_word_count_capital_letter(self, file_path):
+        """
+            Extract out of threesomes of consecutive tags
+            :param file_path: full path of the file to read
+            :param all_words: a list containing all different words in corpus
+                return all word-tag pair, s.t. word begins with a capital letter
+        """
+        curr_dict = 9
+        with open(file_path) as f:
+            for line in f:
+                splited_words = line.split(' ')
+                del splited_words[-1]
+                for word_idx in range(len(splited_words)):
+                    cur_word, cur_tag = splited_words[word_idx].split('_')
+                    if str(cur_word[0]).isupper():
+                        if (cur_word, cur_tag) not in self.array_count_dicts[curr_dict]:
+                            self.array_count_dicts[curr_dict][(cur_word, cur_tag)] = 1
+                        else:
+                            self.array_count_dicts[curr_dict][(cur_word, cur_tag)] += 1
 """### Indexing features 
 After getting feature statistics, each feature is given an index to represent it. We include only features that appear more times in text than the lower bound - 'threshold'
 """
@@ -263,19 +284,21 @@ After getting feature statistics, each feature is given an index to represent it
 
 class Feature2idClass:
 
-    def __init__(self, feature_statistics, thresholds, num_feautres):
+    def __init__(self, feature_statistics, thresholds, num_feautres, min_length_of_suf_pre_fix, max_length_suf_pre_fix):
         self.feature_statistics = feature_statistics  # statistics class, for each feature gives empirical counts
         self.thresholds = thresholds  # feature count threshold - empirical count must be higher than this
 
         self.n_total_features = 0  # Total number of features accumulated
         self.n_tag_pairs = 0  # Number of Word\Tag pairs features
         self.featureIDX = 0   # index for each feature
+        self.min_length_of_suf_pre_fix = min_length_of_suf_pre_fix
+        self.max_length_suf_pre_fix = max_length_suf_pre_fix
         # Init all features dictionaries
         self.array_of_words_tags_dicts = []
         for i in range(0, num_feautres):
             self.array_of_words_tags_dicts.append(OrderedDict())
 
-    def get_id_for_features_over_threshold(self, file_path, num_features):
+    def get_id_for_features_over_threshold(self, file_path, num_features, min_length_suf_pre_fix, max_length_suf_pre_fix):
         """
             Extract out of text all word/tag pairs
             :param file_path: full path of the file to read
@@ -299,9 +322,9 @@ class Feature2idClass:
                                 self.n_tag_pairs += 1
 
                         elif i == 1:
-                            if len(cur_word) > 4:
+                            if len(cur_word) > max_length_suf_pre_fix:
 
-                                for suffix_length in range(-4, 0):  # suffix length in absolute value
+                                for suffix_length in range(- max_length_suf_pre_fix, 1 - min_length_suf_pre_fix):  # suffix length in absolute value
                                     i_letter_suffix = cur_word[suffix_length:]
 
                                     if ((i_letter_suffix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
@@ -311,8 +334,8 @@ class Feature2idClass:
                                         self.n_tag_pairs += 1
 
                         elif i == 2:
-                            if len(cur_word) > 4:
-                                for prefix_length in range(1, 5):
+                            if len(cur_word) > max_length_suf_pre_fix:
+                                for prefix_length in range(min_length_suf_pre_fix, max_length_suf_pre_fix + 1):
                                     i_letter_prefix = cur_word[:prefix_length]
 
                                     if ((i_letter_prefix, cur_tag) not in self.array_of_words_tags_dicts[i]) \
@@ -390,6 +413,15 @@ class Feature2idClass:
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
 
+                        elif i == 9:
+                            if str(cur_word[0]).isupper():
+                                if ((cur_word, cur_tag) not in self.array_of_words_tags_dicts[i]) \
+                                        and (self.feature_statistics.array_count_dicts[i][(cur_word, cur_tag)] >=
+                                             self.thresholds[i]):
+                                    self.array_of_words_tags_dicts[i][(cur_word, cur_tag)] = self.featureIDX
+                                    self.featureIDX += 1
+                                    self.n_tag_pairs += 1
+
 
                         else:
                             pass
@@ -419,6 +451,7 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
         pay attention to the order!!!
             Return a list with all features that are relevant to the given history
     """
+
     ppword = history[0]
     pptag = history[1]
     pword = history[2]
@@ -445,20 +478,23 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     words_tags_dict_106 = Feature2idClass.array_of_words_tags_dicts[6]
     words_tags_dict_107 = Feature2idClass.array_of_words_tags_dicts[7]
     tag_and_previous_two_words_dict_f3 = Feature2idClass.array_of_words_tags_dicts[8]
+    words_tags_dict_capital_letter = Feature2idClass.array_of_words_tags_dicts[9]
 
+    min_length_of_suf_pre_fix = Feature2idClass.min_length_of_suf_pre_fix
+    max_length_suf_pre_fix = Feature2idClass.max_length_suf_pre_fix
 
     # 100 #
     if (cword, ctag) in words_tags_dict_100:
         features.append(words_tags_dict_100[(cword, ctag)])
 
     # 101 #
-    for suffix_length in range(-4, 0):
+    for suffix_length in range(- max_length_suf_pre_fix, 1 - min_length_of_suf_pre_fix):
         i_letter_suffix = cword[suffix_length:]
         if (i_letter_suffix, ctag) in words_tags_dict_101:
             features.append(words_tags_dict_101[(i_letter_suffix, ctag)])
 
     # 102 #
-    for prefix_length in range(1, 5):
+    for prefix_length in range(min_length_of_suf_pre_fix, max_length_suf_pre_fix + 1):
         i_letter_prefix = cword[:prefix_length]
         if (i_letter_prefix, ctag) in words_tags_dict_102:
             features.append(words_tags_dict_102[(i_letter_prefix, ctag)])
@@ -489,6 +525,11 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     tag_and_previous_two_words = (ppword, pword, ctag)
     if tag_and_previous_two_words in tag_and_previous_two_words_dict_f3:
         features.append(tag_and_previous_two_words_dict_f3[tag_and_previous_two_words])
+
+    # capital letter #
+    if (cword, ctag) in words_tags_dict_capital_letter:
+        features.append(words_tags_dict_capital_letter[(cword, ctag)])
+
 
 
 
@@ -526,6 +567,8 @@ def represent_input_with_features_for_test(history, Feature2idClass, num_feature
     if ctag_input:
         ctag = ctag_input
 
+    min_length_of_suf_pre_fix = Feature2idClass.min_length_of_suf_pre_fix
+    max_length_suf_pre_fix = Feature2idClass.max_length_suf_pre_fix
     features = history_tags_features_table[ind]
     curr_index = 0
     words_tags_dict_100 = Feature2idClass.array_of_words_tags_dicts[0]
@@ -537,20 +580,21 @@ def represent_input_with_features_for_test(history, Feature2idClass, num_feature
     words_tags_dict_106 = Feature2idClass.array_of_words_tags_dicts[6]
     words_tags_dict_107 = Feature2idClass.array_of_words_tags_dicts[7]
     tag_and_previous_two_words_dict_f3 = Feature2idClass.array_of_words_tags_dicts[8]
+    words_tags_dict_capital_letter = Feature2idClass.array_of_words_tags_dicts[9]
 
     # 100 #
     if (cword, ctag) in words_tags_dict_100:
         features[curr_index] = words_tags_dict_100[(cword, ctag)]
 
     # 101 #
-    for suffix_length in range(-4, 0):
+    for suffix_length in range(- max_length_suf_pre_fix, 1 - min_length_of_suf_pre_fix):
         curr_index += 1
         i_letter_suffix = cword[suffix_length:]
         if (i_letter_suffix, ctag) in words_tags_dict_101:
             features[curr_index] = words_tags_dict_101[(i_letter_suffix, ctag)]
 
     # 102 #
-    for prefix_length in range(1, 5):
+    for prefix_length in range(min_length_of_suf_pre_fix, max_length_suf_pre_fix + 1):
         curr_index += 1
         i_letter_prefix = cword[:prefix_length]
         if (i_letter_prefix, ctag) in words_tags_dict_102:
@@ -589,7 +633,10 @@ def represent_input_with_features_for_test(history, Feature2idClass, num_feature
     if tag_and_previous_two_words in tag_and_previous_two_words_dict_f3:
         features[curr_index] = tag_and_previous_two_words_dict_f3[tag_and_previous_two_words]
 
-
+    # capital letter #
+    curr_index += 1
+    if (cword, ctag) in words_tags_dict_capital_letter:
+        features[curr_index] = words_tags_dict_capital_letter[(cword, ctag)]
 
 
     return features
@@ -807,6 +854,7 @@ def get_all_gt_tags_ordered(file_path):
                 all_tags_gt_ordered.append(cur_tag)
     return all_tags_gt_ordered
 
+
 def get_all_words_ordered(file_path):
     """
 
@@ -828,16 +876,21 @@ def find_differences_in_possible_tags(file_path1, file_path2):
     tags1 = set(get_all_gt_tags_ordered(file_path1))
     tags2 = set(get_all_gt_tags_ordered(file_path2))
     diff = tags2 - tags1
-    return tags1,tags2, diff
+    return tags1, tags2, diff
 
 
 def main():
     start_time_section_1 = time.time()
-    num_features = 15
-    num_dicts = num_features - 6
+    min_length_of_suf_pre_fix = 1
+    max_length_suf_pre_fix = 4
+    num_dicts = 10
+    num_features = num_dicts + (max_length_suf_pre_fix - min_length_of_suf_pre_fix + 1) * 2
+    # num_features = 16
+    # num_dicts = num_features - 6
+
     scores = {}
 
-    file_path = os.path.join("data", "train1.wtag")
+    file_path = os.path.join("data", "train2.wtag")
     test_path = os.path.join("data", "test1.wtag")
     tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
     # all_words_in_text = get_all_words_ordered(file_path)
@@ -846,24 +899,24 @@ def main():
     # generate statistic class and count all features #
     my_feature_statistics_class = FeatureStatisticsClass(num_dicts)
     my_feature_statistics_class.get_word_tag_pair_count_100(file_path)
-    my_feature_statistics_class.get_word_tag_pair_count_101(file_path)
-    my_feature_statistics_class.get_word_tag_pair_count_102(file_path)
+    my_feature_statistics_class.get_word_tag_pair_count_101(file_path, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
+    my_feature_statistics_class.get_word_tag_pair_count_102(file_path, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
     my_feature_statistics_class.get_tag_threesome_count_103(file_path)
     my_feature_statistics_class.get_tag_couples_count_104(file_path)
     my_feature_statistics_class.get_tag_count_105(file_path)
     my_feature_statistics_class.get_prev_word_curr_tag_pair_count_106(file_path)
     my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
     my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
+    #my_feature_statistics_class.get_tag_word_count_capital_letter(file_path)
 
-
-    curr_percentile = 20
+    curr_percentile = 10
     percentiles = my_feature_statistics_class.get_percentiles(curr_percentile)
     # num_occurrences_thresholds = [x + 1 for x in percentiles]
-    num_occurrences_thresholds = 2 * np.ones_like(percentiles)
+    num_occurrences_thresholds = 0 * np.ones_like(percentiles)
 
     # generate indices for all features that appear above a specified threshold #
-    my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features)
-    my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features)
+    my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
+    my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
 
     # generate a history quadruple table for train #
     history_quadruple_table = collect_history_quadruples(file_path)
@@ -874,7 +927,6 @@ def main():
     # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
     train_tags_ordered = get_all_gt_tags_ordered(file_path)
 
-
     tags_list = []
     tags_list = list(tags_list)
     tags_list.append('*')
@@ -883,8 +935,7 @@ def main():
     tag_to_ind = {'*': 0}
     for i, tag in enumerate(tag_set):
         tags_list.append(tag)
-        tag_to_ind[tag] = i+1
-
+        tag_to_ind[tag] = i + 1
 
     train_correct_tags_ordered_indexed = [tag_to_ind[x] for x in train_tags_ordered]
 
@@ -902,7 +953,7 @@ def main():
     true_tags_train = np.array(train_correct_tags_ordered_indexed)
     true_tags_test = np.array(test_correct_tags_ordered_indexed)
 
-    beam_width = 7
+    beam_width = num_tags
     for alpha in range(0, 1):
 
         mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
