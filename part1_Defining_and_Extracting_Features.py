@@ -214,7 +214,7 @@ class FeatureStatisticsClass:
         """
             Extract out of threesomes of consecutive tags
             :param file_path: full path of the file to read
-                return all threesomes of consecutive tags with index of appearance
+                return all threesomes of tag + 2 previous words
         """
         curr_dict = 8
         with open(file_path) as f:
@@ -835,8 +835,9 @@ def main():
     start_time_section_1 = time.time()
     num_features = 15
     num_dicts = num_features - 6
+    scores = {}
 
-    file_path = os.path.join("data", "train2.wtag")
+    file_path = os.path.join("data", "train1.wtag")
     test_path = os.path.join("data", "test1.wtag")
     tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
     # all_words_in_text = get_all_words_ordered(file_path)
@@ -854,10 +855,11 @@ def main():
     my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
     my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
 
-    best_percentile = 0
 
-    percentiles = my_feature_statistics_class.get_percentiles(best_percentile)
-    num_occurrences_thresholds = percentiles
+    curr_percentile = 20
+    percentiles = my_feature_statistics_class.get_percentiles(curr_percentile)
+    # num_occurrences_thresholds = [x + 1 for x in percentiles]
+    num_occurrences_thresholds = 2 * np.ones_like(percentiles)
 
     # generate indices for all features that appear above a specified threshold #
     my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features)
@@ -871,10 +873,13 @@ def main():
 
     # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
     train_tags_ordered = get_all_gt_tags_ordered(file_path)
+
+
     tags_list = []
     tags_list = list(tags_list)
     tags_list.append('*')
     tag_set = set(train_tags_ordered)
+    num_tags = len(tag_set)
     tag_to_ind = {'*': 0}
     for i, tag in enumerate(tag_set):
         tags_list.append(tag)
@@ -883,7 +888,6 @@ def main():
 
     train_correct_tags_ordered_indexed = [tag_to_ind[x] for x in train_tags_ordered]
 
-    # tags_list.append('STOP')
     # test tags
     test_tags_ordered = get_all_gt_tags_ordered(test_path)
     test_correct_tags_ordered_indexed = [tag_to_ind.get(x, -1) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
@@ -895,18 +899,25 @@ def main():
     end_time_section_1 = time.time()
     total_time = end_time_section_1 - start_time_section_1
     print(f'total time for section 1 is: {total_time} seconds')
+    true_tags_train = np.array(train_correct_tags_ordered_indexed)
+    true_tags_test = np.array(test_correct_tags_ordered_indexed)
 
-    mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
+    beam_width = 7
+    for alpha in range(0, 1):
+
+        mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
                                                                                          test_history_quadruple_table,
                                                                                          tags_list, h, num_features,
                                                                                          requests, beam_width)
-    true_tags_train = np.array(train_correct_tags_ordered_indexed)
-    true_tags_test = np.array(test_correct_tags_ordered_indexed)
-    alpha = 1.
-    alpha = 0
-    v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
 
-    print(compute_accuracy_beam(true_tags_test, mat_gen, v, 1, time_run=True, iprint=500))
+        # alpha = 1.
+        # alpha = 0
+
+        v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
+
+        score = compute_accuracy_beam(true_tags_test, mat_gen, v, beam_width, time_run=True, iprint=500)
+        print(score)
+        scores[(curr_percentile, alpha)] = score
     print("")
 
 
