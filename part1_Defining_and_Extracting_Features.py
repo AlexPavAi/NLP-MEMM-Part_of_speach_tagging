@@ -527,17 +527,17 @@ class Feature2idClass:
                                     self.featureIDX += 1
                                     self.n_tag_pairs += 1
 
-                        elif i == 11 and features_list[i]:
-                            th_index_extra = 2 * (max_length_suf_pre_fix - min_length_suf_pre_fix + 1)
-                            if word_idx == 0:
-                                cword, ctag = splited_words[word_idx].split('_')
-
-                                if (ctag not in self.array_of_words_tags_dicts[i]) \
-                                        and (self.feature_statistics.array_count_dicts[i][
-                                                 ctag] >= self.thresholds[i+th_index_extra]):
-                                    self.array_of_words_tags_dicts[i][ctag] = self.featureIDX
-                                    self.featureIDX += 1
-                                    self.n_tag_pairs += 1
+                        # elif i == 11 and features_list[i]:
+                        #     th_index_extra = 2 * (max_length_suf_pre_fix - min_length_suf_pre_fix + 1)
+                        #     if word_idx == 0:
+                        #         cword, ctag = splited_words[word_idx].split('_')
+                        #
+                        #         if (ctag not in self.array_of_words_tags_dicts[i]) \
+                        #                 and (self.feature_statistics.array_count_dicts[i][
+                        #                          ctag] >= self.thresholds[i+th_index_extra]):
+                        #             self.array_of_words_tags_dicts[i][ctag] = self.featureIDX
+                        #             self.featureIDX += 1
+                        #             self.n_tag_pairs += 1
 
                         else:
                             pass
@@ -1038,8 +1038,8 @@ def main():
     max_length_suf_pre_fix = 4
     alpha_big_model = 0.1  # regularization term (0.1 best)
     alpha_small_model = 0.00001  # (0.000001 best)
-    alpha = alpha_small_model
-    num_dicts = 12  # number of different feauture types
+    alpha = alpha_big_model
+    num_dicts = 11  # number of different feauture types
     num_additional_features = (max_length_suf_pre_fix - min_length_of_suf_pre_fix + 1) * 2
     num_features = num_dicts + num_additional_features  # total number of different features (different lengths for suff/prefixes)
     features_list = np.ones(num_dicts)   # binary array that determines which features are participating
@@ -1048,8 +1048,8 @@ def main():
 
     # features_list = np.random.randint(2, size=num_dicts)
     scores = {}
-    file_path = os.path.join("data", "train2.wtag")
-    test_path = os.path.join("data", "test1.wtag")
+    file_path = os.path.join("data", "train1.wtag")
+    test_path = os.path.join("data", "train2.wtag")
 
     # tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
     # all_words_in_text = get_all_words_ordered(file_path)
@@ -1070,7 +1070,7 @@ def main():
     # my_feature_statistics_class.get_tag_word_count_capital_letter(file_path)
     my_feature_statistics_class.get_tag_foursome_count(file_path)
     my_feature_statistics_class.get_tag_threesome_count_tag_cur_word_prev_word(file_path)
-    my_feature_statistics_class.get_tag_is_first_in_sentence(file_path)
+    # my_feature_statistics_class.get_tag_is_first_in_sentence(file_path)
 
 
     curr_percentile = 5
