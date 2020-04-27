@@ -3,6 +3,7 @@ import numpy as np
 import time
 
 from scipy import sparse
+from scipy.stats import mode
 
 
 def tri_mat_to_probs(tri_mat, v):
@@ -88,10 +89,17 @@ def memm_viterbi(num_h, tri_mat_gen, v, time_run=False, iprint=500):
 
 
 def vectorized_mat_to_probs_for_beam_search(feature_mat, v, pptags, ptags, num_pp, num_p):
-    mat = np.sum(v[feature_mat], axis=2)
-    mat = np.exp(mat)
-    sum_exp = np.sum(mat, axis=1).reshape((mat.shape[0], 1))
-    mat /= sum_exp
+    if len(v.shape) == 1:
+        mat = np.sum(v[feature_mat], axis=2)
+        mat = np.exp(mat)
+        sum_exp = np.sum(mat, axis=1).reshape((mat.shape[0], 1))
+        mat /= sum_exp
+    else:
+        mat = np.sum(v[:, feature_mat], axis=3)
+        mat = np.exp(mat)
+        sum_exp = np.sum(mat, axis=2).reshape((mat.shape[0], 1))
+        mat /= sum_exp
+        mat = np.mean(mat, axis=0)
     beam_width, num_c = mat.shape
     rows = np.tile(num_p * pptags + ptags, (num_c, 1))
     rows = np.transpose(rows).reshape(-1)
@@ -187,6 +195,21 @@ def compute_accuracy(true_tags, tri_mat_gen, v, time_run=False, iprint=500):
 def compute_accuracy_beam(true_tags, mat_gen, v, beam_width, time_run=False, iprint=500):
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
     return np.sum(true_tags == tags_infer)/len(true_tags)
+
+
+def compute_accuracy_beam_with_hard_vote(true_tags, mat_gen, v, beam_width, time_run=False, iprint=None,
+                                         first_weight=1):
+    num_estimators = v.shape[0]
+    num_h = len(true_tags)
+    tags_infer_votes = np.empty((num_estimators + first_weight - 1, num_h), dtype=int)
+    for i in range(num_estimators):
+        tags_infer_votes[i] = memm_viterbi_beam_search(num_h, mat_gen, v[i], beam_width,
+                                                       time_run=time_run, iprint=iprint)
+    for i in range(first_weight-1):
+        tags_infer_votes[i + num_estimators] = tags_infer_votes[0]
+    tags_infer = mode(tags_infer_votes)[0]
+    return np.sum(true_tags == tags_infer)/len(true_tags)
+
 
 # def compute_accuracy_beam(true_tags, mat_gen, v, beam_width1, beam_width2, time_run=False, iprint=500):
 #     tags_infer1 = memm_viterbi_beam_search(18, mat_gen, v, beam_width1, time_run=time_run, iprint=iprint)
