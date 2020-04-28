@@ -1030,6 +1030,36 @@ def find_differences_in_possible_tags(file_path1, file_path2):
     return tags1, tags2, diff
 
 
+def sentence_index_from_history_table(history_table):
+    curr_sentence = history_table[0][0]
+    res = [[0]]
+    for i, ent in enumerate(history_table):
+        if ent[0] != curr_sentence:
+            res[curr_sentence].append(i)
+            res.append([i])
+            curr_sentence += 1
+    res[curr_sentence].append(len(history_table))
+    return res
+
+
+def k_fold_cross_validation(history_table, history_tag_table, sentence_indexs,
+                            training_procedure, tester, true_tags, k=5):
+    res = np.zeros(k)
+    num_s = len(sentence_indexs)
+    fold_size = int(num_s/k)
+    for i in range(k):
+        fold_start = sentence_indexs[i * fold_size][0]
+        fold_end = sentence_indexs[(i + 1) * fold_size - 1][1]
+        test = history_table[fold_start: fold_end]
+        train = np.append(history_tag_table[: fold_start], history_tag_table[fold_end:], axis=0)
+        true_tags_train = np.append(true_tags[: fold_start], true_tags[fold_end:])
+        v = training_procedure(train, true_tags_train)
+        res[i] = tester(test, true_tags[fold_start: fold_end], v)
+    return res
+
+
+
+
 def main():
     start_time_section_1 = time.time()
 
@@ -1042,13 +1072,13 @@ def main():
     num_dicts = 11  # number of different feauture types
     num_additional_features = (max_length_suf_pre_fix - min_length_of_suf_pre_fix + 1) * 2
     num_features = num_dicts + num_additional_features  # total number of different features (different lengths for suff/prefixes)
-    features_list = np.ones(num_dicts)   # binary array that determines which features are participating
+    features_list = [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]   # binary array that determines which features are participating
     num_occurrences_thresholds = 0 * np.ones(num_features)  # vector of thresholds
     num_occurrences_thresholds[5 + num_additional_features] = 2
 
     # features_list = np.random.randint(2, size=num_dicts)
     scores = {}
-    file_path = os.path.join("data", "train1.wtag")
+    file_path = os.path.join("data", "train2.wtag")
     test_path = os.path.join("data", "train2.wtag")
 
     # tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
@@ -1120,19 +1150,34 @@ def main():
 
     beam_width = 7
     mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
-                                                                                     test_history_quadruple_table,
-                                                                                     tags_list, h, num_features,
-                                                                                     requests, beam_width)
+                                                                                        test_history_quadruple_table,
+                                                                                        tags_list, h, num_features,
+                                                                                        requests, beam_width)
 
-    v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
+    # v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
+    #
+    # score = compute_accuracy_beam(true_tags_test, mat_gen, v, beam_width, time_run=True, iprint=500)
+    # print(score)
+    # scores[(str(features_list))] = score
+    # print(f'best features vector is {max(scores, key=scores.get)}')
+    # print(f' best  is: {scores[max(scores, key=scores.get)]}')
+    #
+    # print("")
 
-    score = compute_accuracy_beam(true_tags_test, mat_gen, v, beam_width, time_run=True, iprint=500)
-    print(score)
-    scores[(str(features_list))] = score
-    print(f'best features vector is {max(scores, key=scores.get)}')
-    print(f' best  is: {scores[max(scores, key=scores.get)]}')
+    training_procedure = lambda table, tags: train_from_list(table, tags, alpha,
+                                                             num_f=my_feature2id_class.n_total_features)
 
-    print("")
+    def tester(table, true_tags, v):
+        mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
+                                                                                             table,
+                                                                                             tags_list, h, num_features,
+                                                                                             requests, beam_width)
+        return compute_accuracy_beam(true_tags, mat_gen, v, beam_width)
+
+    sentence_indexs = sentence_index_from_history_table(history_quadruple_table)
+    print(np.mean(k_fold_cross_validation(history_quadruple_table, history_tags_features_table_for_training,
+                                          sentence_indexs, training_procedure, tester,
+                                          true_tags_train)))
 
 
 if __name__ == '__main__':

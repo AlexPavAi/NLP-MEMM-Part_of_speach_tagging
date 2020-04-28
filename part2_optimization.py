@@ -5,7 +5,7 @@ from scipy.optimize import fmin_l_bfgs_b
 import time
 
 
-def feature_list_to_sparse_matrix(feature_list, return_dims=True):
+def feature_list_to_sparse_matrix(feature_list, num_f=-1, return_dims=True):
     num_h = len(feature_list)
     num_t = len(feature_list[0])
     row = []
@@ -18,7 +18,11 @@ def feature_list_to_sparse_matrix(feature_list, return_dims=True):
             col += col_ind
     row = np.array(row)
     col = np.array(col)
-    mat = sparse.csr_matrix((np.ones(len(row)), (row, col)))
+    if num_f == -1:
+        shpae = None
+    else:
+        shape = (num_h * num_t, num_f)
+    mat = sparse.csr_matrix((np.ones(len(row)), (row, col)), shape=shape)
     if return_dims:
         num_f = mat.shape[1]
         return mat, num_h, num_t, num_f
@@ -50,10 +54,11 @@ def calc_objective_per_iter(w_i, feature_mat: sparse.csr_matrix, empirical_count
     return (-1) * likelihood, (-1) * grad
 
 
-def train_from_list(feature_list, true_tags, alpha, weights_path=None, time_run=False, feature_select=None, l1=False):
+def train_from_list(feature_list, true_tags, alpha, num_f=-1, weights_path=None, time_run=False,
+                    feature_select=None, l1=False):
     if time_run:
         t1 = time.time()
-    feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list)
+    feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list, num_f)
     if time_run:
         t2 = time.time()
         print('Part 2 format conversion time:', t2 - t1)
@@ -89,11 +94,12 @@ def feature_selector(feature_list, true_tags, alpha=0., maxiter=10, q=0.2):
     return weights >= threshold
 
 
-def train_ensemble_from_list(feature_list, true_tags, alpha, num_estimators=5, weights_path=None, time_run=False,
-                             max_samples=1., max_features=1., bootstrap_samples=True, stack=False, maxiter=1000):
+def train_ensemble_from_list(feature_list, true_tags, alpha, num_f=-1, num_estimators=5, weights_path=None,
+                             time_run=False, max_samples=1., max_features=1., bootstrap_samples=True, stack=False,
+                             maxiter=1000):
     if time_run:
         t1 = time.time()
-    orig_feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list)
+    orig_feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list, num_f)
     if stack:
         v = np.zeros((num_estimators, num_f), dtype=np.float32)
     else:
