@@ -19,7 +19,7 @@ def feature_list_to_sparse_matrix(feature_list, num_f=-1, return_dims=True):
     row = np.array(row)
     col = np.array(col)
     if num_f == -1:
-        shpae = None
+        shape = None
     else:
         shape = (num_h * num_t, num_f)
     mat = sparse.csr_matrix((np.ones(len(row)), (row, col)), shape=shape)
@@ -82,8 +82,8 @@ def train_from_list(feature_list, true_tags, alpha, num_f=-1, weights_path=None,
     return weights
 
 
-def feature_selector(feature_list, true_tags, alpha=0., maxiter=10, q=0.2):
-    feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list)
+def feature_selector(feature_list, true_tags, num_f=-1,alpha=0., maxiter=10, q=0.2):
+    feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list, num_f=num_f)
     true_tags_history = num_t * np.arange(num_h) + true_tags
     empirical_counts = np.asarray(feature_mat[true_tags_history].sum(axis=0)).reshape(-1)
     args = (feature_mat, empirical_counts, num_h, true_tags, alpha)

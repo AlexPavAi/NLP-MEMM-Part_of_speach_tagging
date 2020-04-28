@@ -4,6 +4,9 @@ import time
 
 from scipy import sparse
 from scipy.stats import mode
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn
 
 
 def tri_mat_to_probs(tri_mat, v):
@@ -211,8 +214,19 @@ def compute_accuracy_beam_with_hard_vote(true_tags, mat_gen, v, beam_width, time
     return np.sum(true_tags == tags_infer)/len(true_tags)
 
 
-# def compute_accuracy_beam(true_tags, mat_gen, v, beam_width1, beam_width2, time_run=False, iprint=500):
-#     tags_infer1 = memm_viterbi_beam_search(18, mat_gen, v, beam_width1, time_run=time_run, iprint=iprint)
-#     tags_infer2 = memm_viterbi_beam_search(18, mat_gen, v, beam_width2, time_run=time_run, iprint=iprint)
-#     print(np.all(tags_infer1==tags_infer2))
-#     return np.sum(true_tags[:18] == tags_infer1)/18
+def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list):
+    tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width)
+    tags_infer_df = pd.Series(tags_infer, name='Actual')
+    true_tags_df = pd.Series(true_tags, name='Predicted')
+    confusion_matrix = pd.crosstab(tags_infer_df, true_tags_df)
+    confusion_matrix.rename(columns=lambda s: tag_list[int(s)], index=lambda s: tag_list[int(s)], inplace=True)
+    idx = np.arange(confusion_matrix.values.shape[0])
+    confusion_matrix.values[idx, idx] = 0
+    confusion_order = confusion_matrix.sum(axis=0).sort_values()[::-1].index
+    confusion_matrix = confusion_matrix[confusion_order[: 10]]
+    confusion_matrix = confusion_matrix.reindex(confusion_order)
+    seaborn.heatmap(confusion_matrix, annot=True)
+    plt.show()
+
+
+
