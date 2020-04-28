@@ -216,16 +216,18 @@ def compute_accuracy_beam_with_hard_vote(true_tags, mat_gen, v, beam_width, time
 
 def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list):
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width)
-    tags_infer_df = pd.Series(tags_infer, name='Actual')
-    true_tags_df = pd.Series(true_tags, name='Predicted')
+    tags_infer_df = pd.Series(tags_infer, name='Predicted')
+    true_tags_df = pd.Series(true_tags, name='Actual')
     confusion_matrix = pd.crosstab(tags_infer_df, true_tags_df)
+    for i in confusion_matrix.index.values:
+        confusion_matrix[i][i] = 0
     confusion_matrix.rename(columns=lambda s: tag_list[int(s)], index=lambda s: tag_list[int(s)], inplace=True)
-    idx = np.arange(confusion_matrix.values.shape[0])
-    confusion_matrix.values[idx, idx] = 0
+    np.fill_diagonal(confusion_matrix.values, 0)
     confusion_order = confusion_matrix.sum(axis=0).sort_values()[::-1].index
     confusion_matrix = confusion_matrix[confusion_order[: 10]]
-    confusion_matrix = confusion_matrix.reindex(confusion_order)
-    seaborn.heatmap(confusion_matrix, annot=True)
+    confusion_matrix = confusion_matrix.reindex(confusion_order.rename('Predicted'), copy=False, fill_value=0)
+    plt.figure(figsize=(20, 10))
+    seaborn.heatmap(confusion_matrix ,annot=True)
     plt.show()
 
 
