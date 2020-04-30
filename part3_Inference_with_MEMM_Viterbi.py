@@ -190,14 +190,22 @@ def memm_viterbi_beam_search(num_h, mat_gen, v, beam_width, time_run=False, ipri
     return np.array(tags_infer)
 
 
-def compute_accuracy(true_tags, tri_mat_gen, v, time_run=False, iprint=500):
+def compute_accuracy(true_tags, tri_mat_gen, v, time_run=False, iprint=1000):
     tags_infer = memm_viterbi(len(true_tags), tri_mat_gen, v, time_run=time_run, iprint=iprint)
     return np.sum(true_tags == tags_infer)/len(true_tags)
 
 
-def compute_accuracy_beam(true_tags, mat_gen, v, beam_width, time_run=False, iprint=500):
+def compute_accuracy_beam(true_tags, mat_gen, v, beam_width, time_run=False, iprint=1000):
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
     return np.sum(true_tags == tags_infer)/len(true_tags)
+
+
+def infer_tags(true_tags, mat_gen, v, beam_width, tag_list, time_run=False, iprint=None):
+    tags_infer_ind = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
+    tags_infer = []
+    for ind in tags_infer_ind:
+        tags_infer.append(tag_list[ind])
+    return tags_infer
 
 
 def compute_accuracy_beam_with_hard_vote(true_tags, mat_gen, v, beam_width, time_run=False, iprint=None,
@@ -214,16 +222,22 @@ def compute_accuracy_beam_with_hard_vote(true_tags, mat_gen, v, beam_width, time
     return np.sum(true_tags == tags_infer)/len(true_tags)
 
 
-def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list):
+def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list, zero_diag=True):
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width)
     tags_infer_df = pd.Series(tags_infer, name='Predicted')
     true_tags_df = pd.Series(true_tags, name='Actual')
     confusion_matrix = pd.crosstab(tags_infer_df, true_tags_df)
+    seen_tags_ind = np.copy(confusion_matrix.index.values)
+    diag = [0 for _ in range(max(seen_tags_ind) + 1)]
     for i in confusion_matrix.index.values:
+        diag[i] = confusion_matrix[i][i]
         confusion_matrix[i][i] = 0
     confusion_matrix.rename(columns=lambda s: tag_list[int(s)], index=lambda s: tag_list[int(s)], inplace=True)
-    np.fill_diagonal(confusion_matrix.values, 0)
     confusion_order = confusion_matrix.sum(axis=0).sort_values()[::-1].index
+    if not zero_diag:
+        for i in seen_tags_ind:
+            tag = tag_list[i]
+            confusion_matrix[tag][tag] = diag[i]
     confusion_matrix = confusion_matrix[confusion_order[: 10]]
     confusion_matrix = confusion_matrix.reindex(confusion_order.rename('Predicted'), copy=False, fill_value=0)
     plt.figure(figsize=(20, 10))
