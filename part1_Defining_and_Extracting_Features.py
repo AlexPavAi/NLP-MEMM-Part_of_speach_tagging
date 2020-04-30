@@ -355,6 +355,10 @@ class Feature2idClass:
         self.featureIDX = 0   # index for each feature
         self.min_length_of_suf_pre_fix = min_length_of_suf_pre_fix
         self.max_length_suf_pre_fix = max_length_suf_pre_fix
+
+        self.tag_list = []
+        self.tag_to_ind = {}
+        self.num_feature_class = -1
         # Init all features dictionaries
         self.array_of_words_tags_dicts = []
         for i in range(0, num_feautres):
@@ -1058,6 +1062,85 @@ def k_fold_cross_validation(history_table, history_tag_table, sentence_indexs,
     return res
 
 
+def train_models(weights_path, feature_path, model):
+    min_length_of_suf_pre_fix = 1
+    max_length_suf_pre_fix = 4
+    num_dicts = 11  # number of different feauture types
+    num_additional_features = (max_length_suf_pre_fix - min_length_of_suf_pre_fix + 1) * 2
+    num_features = num_dicts + num_additional_features
+    if model == 'small':
+        alpha, thresholds, beam = 0.1, 2, 2
+        features_list = [1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0]
+        file_path = os.path.join("data", "train2.wtag")
+    if model == 'big':
+        alpha, thresholds, beam = 0.35, 0, 2
+        features_list = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]
+        file_path = os.path.join("data", "train1.wtag")
+    num_occurrences_thresholds = np.ones(num_features) * thresholds
+
+    my_feature_statistics_class = FeatureStatisticsClass(num_dicts)
+
+    my_feature_statistics_class.get_word_tag_pair_count_100(file_path)
+    my_feature_statistics_class.get_word_tag_pair_count_101(file_path, min_length_of_suf_pre_fix,
+                                                            max_length_suf_pre_fix)
+    my_feature_statistics_class.get_word_tag_pair_count_102(file_path, min_length_of_suf_pre_fix,
+                                                            max_length_suf_pre_fix)
+    my_feature_statistics_class.get_tag_threesome_count_103(file_path)
+    my_feature_statistics_class.get_tag_couples_count_104(file_path)
+    my_feature_statistics_class.get_tag_count_105(file_path)
+    my_feature_statistics_class.get_prev_word_curr_tag_pair_count_106(file_path)
+    my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
+    my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
+    my_feature_statistics_class.get_tag_threesome_count_tag_cur_word_prev_word(file_path)
+    my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features,
+                                          min_length_of_suf_pre_fix, max_length_suf_pre_fix)
+    my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features, min_length_of_suf_pre_fix,
+                                                           max_length_suf_pre_fix, features_list)
+    train_tags_ordered = get_all_gt_tags_ordered(file_path)
+    tags_list = []
+    tags_list = list(tags_list)
+    tags_list.append('*')
+    tag_set = set(train_tags_ordered)
+    tag_to_ind = {'*': 0}
+    for i, tag in enumerate(tag_set):
+        tags_list.append(tag)
+        tag_to_ind[tag] = i + 1
+    my_feature2id_class.tag_list = tags_list
+    my_feature2id_class.tag_to_ind = tag_to_ind
+    my_feature2id_class.num_feature_class = num_features
+    history_quadruple_table = collect_history_quadruples(file_path)
+    true_tags_train = np.array([tag_to_ind[x] for x in train_tags_ordered])
+    history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
+                                                                                                    history_quadruple_table,
+                                                                                                    tags_list)
+
+    if feature_path is not None:
+        with open(feature_path, 'wb') as f:
+            pickle.dump(my_feature2id_class, f)
+    v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True,
+                        weights_path=weights_path)
+    return v, my_feature2id_class
+
+
+def use_trained_model(weights_path, feature_path):
+    with open(weights_path, 'rb') as f:
+        v = pickle.load(f)[0]
+    with open(feature_path, 'rb') as f:
+        my_feature2id_class = pickle.load(f)
+    tags_list = my_feature2id_class.tag_list
+    tag_to_ind = my_feature2id_class.tag_to_ind
+    num_features = my_feature2id_class.num_feature_class
+    '''rest of the code here for example testing on test1'''
+    test_path = os.path.join("data", "test1.wtag")
+    test_history_quadruple_table = collect_history_quadruples(test_path)
+    test_tags_ordered = get_all_gt_tags_ordered(test_path)
+    true_tags_test = np.array([tag_to_ind.get(x, -1) for x in test_tags_ordered])
+    mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
+                                                                                         test_history_quadruple_table,
+                                                                                         tags_list, h, num_features,
+                                                                                         requests, beam_width)
+    score = compute_accuracy_beam(true_tags_test, mat_gen, v, 2, time_run=True, iprint=500)
+    print(score)
 
 
 def main():
