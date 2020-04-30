@@ -5,7 +5,7 @@ import numpy as np
 import time
 from part2_optimization import train_from_list
 from part3_Inference_with_MEMM_Viterbi import compute_accuracy, compute_accuracy_beam
-
+import math
 """
 *   Pre-training:
     1.   Preprocessing data
@@ -1062,19 +1062,20 @@ def k_fold_cross_validation(history_table, history_tag_table, sentence_indexs,
 
 def main():
     start_time_section_1 = time.time()
-
+    # best pararms small model: alpha = 0.1, thresholds = 2, beam = 2, score = 0.934302, features = all first 8
+    # best params big model: alpha = 0.35, thresholds = 0 beam =2, score = 0.9557, features = all first 8 without 103
     # defining hyper-parameters #
     min_length_of_suf_pre_fix = 1
     max_length_suf_pre_fix = 4
     alpha_big_model = 0.1  # regularization term (0.1 best)
-    alpha_small_model = 0.00001  # (0.000001 best)
-    alpha = alpha_big_model
+    alpha_small_model = 0.05  # (0.000001 best)
+    my_alpha = alpha_small_model
     num_dicts = 11  # number of different feauture types
     num_additional_features = (max_length_suf_pre_fix - min_length_of_suf_pre_fix + 1) * 2
     num_features = num_dicts + num_additional_features  # total number of different features (different lengths for suff/prefixes)
-    features_list = [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]   # binary array that determines which features are participating
-    num_occurrences_thresholds = 0 * np.ones(num_features)  # vector of thresholds
-    num_occurrences_thresholds[5 + num_additional_features] = 2
+    features_list = [1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0]   # binary array that determines which features are participating
+    my_num_occurrences_thresholds = np.ones(num_features)  # vector of thresholds
+    #num_occurrences_thresholds[5 + num_additional_features] = 2
 
     # features_list = np.random.randint(2, size=num_dicts)
     scores = {}
@@ -1098,87 +1099,105 @@ def main():
     my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
     my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
     # my_feature_statistics_class.get_tag_word_count_capital_letter(file_path)
-    my_feature_statistics_class.get_tag_foursome_count(file_path)
+    # my_feature_statistics_class.get_tag_foursome_count(file_path)
     my_feature_statistics_class.get_tag_threesome_count_tag_cur_word_prev_word(file_path)
     # my_feature_statistics_class.get_tag_is_first_in_sentence(file_path)
 
 
     curr_percentile = 5
-    percentiles = my_feature_statistics_class.get_percentiles(curr_percentile)
+    # percentiles = my_feature_statistics_class.get_percentiles(curr_percentile)
 
 
     # num_occurrences_thresholds = [x + 1 for x in percentiles]
 
     # generate indices for all features that appear above a specified threshold #
-    my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
-    my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix, features_list)
 
-    # generate a history quadruple table for train #
-    history_quadruple_table = collect_history_quadruples(file_path)
+    for alpha_coeff in range(2, 3):
+        for th_coeff in range(0, 1):
+            for beam_width in range(2, 3):
 
-    # generate a history quadruple table for test #
-    test_history_quadruple_table = collect_history_quadruples(test_path)
+                # alpha = my_alpha * math.pow(10, alpha_coeff)
+                alpha = my_alpha * alpha_coeff
+                num_occurrences_thresholds = my_num_occurrences_thresholds * th_coeff
 
-    # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
-    train_tags_ordered = get_all_gt_tags_ordered(file_path)
 
-    tags_list = []
-    tags_list = list(tags_list)
-    tags_list.append('*')
-    tag_set = set(train_tags_ordered)
-    num_tags = len(tag_set)
-    tag_to_ind = {'*': 0}
-    for i, tag in enumerate(tag_set):
-        tags_list.append(tag)
-        tag_to_ind[tag] = i + 1
+                my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
+                my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix, features_list)
 
-    train_correct_tags_ordered_indexed = [tag_to_ind[x] for x in train_tags_ordered]
+                # generate a history quadruple table for train #
+                history_quadruple_table = collect_history_quadruples(file_path)
 
-    # test tags
-    test_tags_ordered = get_all_gt_tags_ordered(test_path)
-    test_correct_tags_ordered_indexed = [tag_to_ind.get(x, -1) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
+                # generate a history quadruple table for test #
+                test_history_quadruple_table = collect_history_quadruples(test_path)
 
-    # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
-    history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
-                                                                                                    history_quadruple_table,
-                                                                                                    tags_list)
-    end_time_section_1 = time.time()
-    total_time = end_time_section_1 - start_time_section_1
-    print(f'total time for section 1 is: {total_time} seconds')
-    true_tags_train = np.array(train_correct_tags_ordered_indexed)
-    true_tags_test = np.array(test_correct_tags_ordered_indexed)
+                # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
+                train_tags_ordered = get_all_gt_tags_ordered(file_path)
 
-    beam_width = 7
-    mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
-                                                                                        test_history_quadruple_table,
-                                                                                        tags_list, h, num_features,
-                                                                                        requests, beam_width)
+                tags_list = []
+                tags_list = list(tags_list)
+                tags_list.append('*')
+                tag_set = set(train_tags_ordered)
+                num_tags = len(tag_set)
+                tag_to_ind = {'*': 0}
+                for i, tag in enumerate(tag_set):
+                    tags_list.append(tag)
+                    tag_to_ind[tag] = i + 1
 
-    # v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
-    #
-    # score = compute_accuracy_beam(true_tags_test, mat_gen, v, beam_width, time_run=True, iprint=500)
-    # print(score)
-    # scores[(str(features_list))] = score
-    # print(f'best features vector is {max(scores, key=scores.get)}')
-    # print(f' best  is: {scores[max(scores, key=scores.get)]}')
-    #
-    # print("")
+                train_correct_tags_ordered_indexed = [tag_to_ind[x] for x in train_tags_ordered]
 
-    training_procedure = lambda table, tags: train_from_list(table, tags, alpha,
-                                                             num_f=my_feature2id_class.n_total_features)
+                # test tags
+                test_tags_ordered = get_all_gt_tags_ordered(test_path)
+                test_correct_tags_ordered_indexed = [tag_to_ind.get(x, -1) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
 
-    def tester(table, true_tags, v):
-        mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
-                                                                                             table,
-                                                                                             tags_list, h, num_features,
-                                                                                             requests, beam_width)
-        return compute_accuracy_beam(true_tags, mat_gen, v, beam_width)
+                # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
+                history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
+                                                                                                                history_quadruple_table,
+                                                                                                                tags_list)
+                end_time_section_1 = time.time()
+                total_time = end_time_section_1 - start_time_section_1
+                print(f'total time for section 1 is: {total_time} seconds')
+                true_tags_train = np.array(train_correct_tags_ordered_indexed)
+                true_tags_test = np.array(test_correct_tags_ordered_indexed)
 
-    sentence_indexs = sentence_index_from_history_table(history_quadruple_table)
-    print(np.mean(k_fold_cross_validation(history_quadruple_table, history_tags_features_table_for_training,
-                                          sentence_indexs, training_procedure, tester,
-                                          true_tags_train)))
+                #beam_width = 7
+                mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
+                                                                                                    test_history_quadruple_table,
+                                                                                                    tags_list, h, num_features,
+                                                                                                    requests, beam_width)
 
+                # v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
+                #
+                # score = compute_accuracy_beam(true_tags_test, mat_gen, v, beam_width, time_run=True, iprint=500)
+                # print(score)
+                # # scores[(str(features_list))] = score
+                # scores[((alpha_coeff, th_coeff, beam_width))] = score
+                # # print(f'best features vector is {max(scores, key=scores.get)}')
+                # # print(f' best  is: {scores[max(scores, key=scores.get)]}')
+                #
+                # # print("")
+
+                training_procedure = lambda table, tags: train_from_list(table, tags, alpha,
+                                                                         num_f=my_feature2id_class.n_total_features)
+
+                def tester(table, true_tags, v):
+                    mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
+                                                                                                         table,
+                                                                                                         tags_list, h, num_features,
+                                                                                                         requests, beam_width)
+                    return compute_accuracy_beam(true_tags, mat_gen, v, beam_width)
+
+                sentence_indexs = sentence_index_from_history_table(history_quadruple_table)
+                score = (np.mean(k_fold_cross_validation(history_quadruple_table, history_tags_features_table_for_training,
+                                                      sentence_indexs, training_procedure, tester,
+                                                      true_tags_train)))
+                print(score)
+                scores[((alpha_coeff, th_coeff, beam_width))] = score
+
+
+    best_params = max(scores, key=scores.get)
+    print(f'params {best_params}')
+    print(f' best params: alpha: {my_alpha * best_params[0] }, thresholds: {best_params[1] * my_num_occurrences_thresholds}, beam width: {best_params[2]}')
+    print(f' best  is: {scores[max(scores, key=scores.get)]}')
 
 if __name__ == '__main__':
     main()
