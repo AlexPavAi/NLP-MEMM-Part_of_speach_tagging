@@ -227,10 +227,10 @@ def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list, zero_diag
     tags_infer_df = pd.Series(tags_infer, name='Predicted')
     true_tags_df = pd.Series(true_tags, name='Actual')
     confusion_matrix = pd.crosstab(tags_infer_df, true_tags_df)
-    diag = []
     seen_tags_ind = np.copy(confusion_matrix.index.values)
+    diag = [0 for _ in range(max(seen_tags_ind) + 1)]
     for i in confusion_matrix.index.values:
-        diag.append(confusion_matrix[i][i])
+        diag[i] = confusion_matrix[i][i]
         confusion_matrix[i][i] = 0
     confusion_matrix.rename(columns=lambda s: tag_list[int(s)], index=lambda s: tag_list[int(s)], inplace=True)
     confusion_order = confusion_matrix.sum(axis=0).sort_values()[::-1].index
