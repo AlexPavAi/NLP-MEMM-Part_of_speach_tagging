@@ -4,7 +4,8 @@ from collections import OrderedDict
 import numpy as np
 import time
 from part2_optimization import train_from_list
-from part3_Inference_with_MEMM_Viterbi import compute_accuracy, compute_accuracy_beam
+from part3_Inference_with_MEMM_Viterbi import compute_accuracy, compute_accuracy_beam, plot_confusion_matrix, \
+    get_test_statistics
 import math
 """
 *   Pre-training:
@@ -1135,13 +1136,12 @@ def use_trained_model(weights_path, feature_path):
     test_history_quadruple_table = collect_history_quadruples(test_path)
     test_tags_ordered = get_all_gt_tags_ordered(test_path)
     true_tags_test = np.array([tag_to_ind.get(x, -1) for x in test_tags_ordered])
+    sentence_indexes = sentence_index_from_history_table(test_history_quadruple_table)
     mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
                                                                                          test_history_quadruple_table,
                                                                                          tags_list, h, num_features,
                                                                                          requests, beam_width)
-    score = compute_accuracy_beam(true_tags_test, mat_gen, v, 2, time_run=True, iprint=500)
-    print(score)
-
+    get_test_statistics(true_tags_test, mat_gen, v, 2, sentence_indexes)
 
 def main():
     start_time_section_1 = time.time()
@@ -1283,4 +1283,4 @@ def main():
     print(f' best  is: {scores[max(scores, key=scores.get)]}')
 
 if __name__ == '__main__':
-    main()
+    train_models('samll_weights', 'small_features', 'small')
