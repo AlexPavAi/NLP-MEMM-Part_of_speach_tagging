@@ -6,6 +6,16 @@ import time
 
 
 def feature_list_to_sparse_matrix(feature_list, num_f=-1, return_dims=True):
+    """
+    convert array of feature lists to scipy sparse matrix
+    :param feature_list: array with entries of history number and current tag number (in that order) which stores the
+    list of feature statified for the history and the current tag (i.e. when the current tag of the history is replaced
+    with the current tag)
+    :param num_f: the number of features if -1 is given it will be computed be max feature number seen
+    :param return_dims: if true the function would return the number of histories, tag and features
+    :return: mat, scipy sparse crs matrix where mat[h * (number of tags) + t, feature number] == 1 iff the hisotry
+    numbered h with current tag t satisfies the feature numbered feature number else 0
+    """
     num_h = len(feature_list)
     num_t = len(feature_list[0])
     row = []
@@ -31,11 +41,13 @@ def feature_list_to_sparse_matrix(feature_list, num_f=-1, return_dims=True):
 def calc_objective_per_iter(w_i, feature_mat: sparse.csr_matrix, empirical_counts, num_h, true_tags, alpha, l1=False):
     """
         Calculate max entropy likelihood for an iterative optimization method
+        :param true_tags: the actual tags (in int encoding)
+        :param feature_mat: matrix at the format that returned from feature_list_to_sparse_matrix
         :param alpha: the regularization coefficient
         :param num_h: number of histories in the training data
         :param empirical_counts: pre computed empirical_counts
         :param w_i: weights vector in iteration i
-
+        :param l1: use l1 regularization instead of l2
 
             The function returns the Max Entropy likelihood (objective) and the objective gradient
     """
@@ -56,6 +68,18 @@ def calc_objective_per_iter(w_i, feature_mat: sparse.csr_matrix, empirical_count
 
 def train_from_list(feature_list, true_tags, alpha, num_f=-1, weights_path=None, time_run=False,
                     feature_select=None, l1=False):
+    """
+    trains the model
+    :param feature_list: representation of the training file with features (used in feature_list_to_sparse_matrix)
+    :param true_tags: true tags for calc_objective_per_iter
+    :param alpha: for calc_objective_per_iter
+    :param num_f: for in feature_list_to_sparse_matrix
+    :param weights_path: if not non saves the weight in that path
+    :param time_run: if true times the run
+    :param feature_select: array of selected featurs the rest are not used
+    :param l1: for calc_objective_per_iter
+    :return: the trained weights
+    """
     if time_run:
         t1 = time.time()
     feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list, num_f)
@@ -82,7 +106,8 @@ def train_from_list(feature_list, true_tags, alpha, num_f=-1, weights_path=None,
     return weights
 
 
-def feature_selector(feature_list, true_tags, num_f=-1,alpha=0., maxiter=10, q=0.2):
+def feature_selector(feature_list, true_tags, num_f=-1, alpha=0., maxiter=10, q=0.2):
+    """returns a boolean array that is True in the 1-q highest absolute weight features after matiter iterations"""
     feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list, num_f=num_f)
     true_tags_history = num_t * np.arange(num_h) + true_tags
     empirical_counts = np.asarray(feature_mat[true_tags_history].sum(axis=0)).reshape(-1)
@@ -97,6 +122,23 @@ def feature_selector(feature_list, true_tags, num_f=-1,alpha=0., maxiter=10, q=0
 def train_ensemble_from_list(feature_list, true_tags, alpha, num_f=-1, num_estimators=5, weights_path=None,
                              time_run=False, max_samples=1., max_features=1., bootstrap_samples=True, stack=False,
                              maxiter=1000):
+    """
+    train ensembled model
+    :param feature_list: for training
+    :param true_tags: for training
+    :param alpha: the alpha parameter of the models
+    :param num_f: for training
+    :param num_estimators: number of model to train
+    :param weights_path: if not non saves the weight in that path
+    :param time_run: if true times the run
+    :param max_samples: the part of the training samples each model sample
+    :param max_features: the part of the feature sampled for each model
+    :param bootstrap_samples: if true use bootstrap on the sample
+    :param stack: if false return the mean of the weight multiplied by the inverse of max_features if true
+    each row will be the weight of different model
+    :param maxiter: the max optimization iter each model can use
+    :return: the trained weights
+    """
     if time_run:
         t1 = time.time()
     orig_feature_mat, num_h, num_t, num_f = feature_list_to_sparse_matrix(feature_list, num_f)
@@ -146,38 +188,3 @@ def train_ensemble_from_list(feature_list, true_tags, alpha, num_f=-1, num_estim
         with open(weights_path, 'wb') as f:
             pickle.dump(v, f)
     return v
-
-'''
-"""Now lets run the code untill we get the optimized weights."""
-
-from scipy.optimize import fmin_l_bfgs_b
-
-# Statistics
-statistics = feature_statistics_class()
-statistics.get_word_tag_pairs(train_path)
-
-# feature2id
-feature2id = feature2id_class(statistics, threshold)
-feature2id.get_word_tag_pairs(train_path)
-
-# define 'args', that holds the arguments arg_1, arg_2, ... for 'calc_objective_per_iter'
-args = (arg_1, arg_2, ...)
-w_0 = np.zeros(n_total_features, dtype=np.float32)
-optimal_params = fmin_l_bfgs_b(func=calc_objective_per_iter, x0=w_0, args=args, maxiter=1000, iprint=50)
-weights = optimal_params[0]
-
-# Now you can save weights using pickle.dump() - 'weights_path' specifies where the weight file will be saved.
-# IMPORTANT - we expect to recieve weights in 'pickle' format, don't use any other format!!
-weights_path = 'your_path_to_weights_dir/trained_weights_data_i.pkl'  # i identifies which dataset this is trained on
-with open(weights_path, 'wb') as f:
-    pickle.dump(optimal_params, f)
-
-#### In order to load pre-trained weights, just use the next code: ####
-#                                                                     #
-# with open(weights_path, 'rb') as f:                                 #
-#   optimal_params = pickle.load(f)                                   #
-# pre_trained_weights = optimal_params[0]                             #
-#                                                                     #
-#######################################################################
-'''
-
