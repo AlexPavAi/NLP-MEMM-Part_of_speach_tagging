@@ -10,6 +10,10 @@ import seaborn
 
 
 def tri_mat_to_probs(tri_mat, v):
+    """
+    coverts the tri_mat with pptag, ptag, ctag entries that stores the satisfied features for
+    the history, pptag, ptag, ctag to probabilty array according to weights v (with the same entries)
+    """
     num_ppt = len(tri_mat)
     num_pt = len(tri_mat[0])
     num_ct = len(tri_mat[0][0])
@@ -25,6 +29,10 @@ def tri_mat_to_probs(tri_mat, v):
 
 
 def vectorized_tri_mat_to_probs(tri_mat, v):
+    """coverts the tri_mat array with pptag, ptag, ctag entries that stores the satisfied features for each
+    feature class or -1 if non is satisfied (the format help for vectorized compution) to probability
+    array with the same entries.
+    assumes that v[-1]==0"""
     mat = np.sum(v[tri_mat], axis=3)
     mat = np.exp(mat)
     sum_exp = np.sum(mat, axis=2).reshape((mat.shape[0], mat.shape[1], 1))
@@ -33,6 +41,17 @@ def vectorized_tri_mat_to_probs(tri_mat, v):
 
 
 def memm_viterbi(num_h, tri_mat_gen, v, time_run=False, iprint=500):
+    """
+    infer tags using the viterbi algorithm
+    :param num_h: number of histories
+    :param tri_mat_gen: generating array with pptag, ptag, ctag entries in the format for vectorized_tri_mat_to_probs
+    (as it proves to by faster) given history number, also returns the sentens the history is in and if the history is
+    of the last word of the sentence.
+    :param v: the trained weights
+    :param time_run: if true, times the run
+    :param iprint: if not None, print after every iprint iteration
+    :return: array of the infefered tags (as ints)
+    """
     tags_infer = []
     start = True
     v = np.append(v, 0)
@@ -92,6 +111,20 @@ def memm_viterbi(num_h, tri_mat_gen, v, time_run=False, iprint=500):
 
 
 def vectorized_mat_to_probs_for_beam_search(feature_mat, v, pptags, ptags, num_pp, num_p):
+    """
+    :param feature_mat: array with entry for feature request number storing the feature satisfied in the format
+    described in vectorized_tri_mat_to_probs
+    :param v: the weight of the model assuming v[-1]==0 if v is 2 dimensional each row of v should be weight for
+    differnt models (v dimension should not be higher than 2)
+    :param pptags: array of pptags requested such that pptag[i] is the i'th pptag requested
+    :param ptags: array of ptags requested such that ptag[i] is the i'th ptag requested
+    :param num_pp: total number of tag that can come before the history before the current history (1 at the start
+    or second word of the sentence)
+    :param num_p: total number of tag that can come before the current history (1 at the start of the sentence)
+    :return: scipy csr sparse matrix where the cell in the num_p * t + u and th column c is the probality of tag c
+    given ptag u and pptag t and the history for which feature_mat was generated if the state t, u was requested
+    or 0 otherwise. (if v is 2 dimensional the result are averaged)
+    """
     if len(v.shape) == 1:
         mat = np.sum(v[feature_mat], axis=2)
         mat = np.exp(mat)
@@ -100,7 +133,7 @@ def vectorized_mat_to_probs_for_beam_search(feature_mat, v, pptags, ptags, num_p
     else:
         mat = np.sum(v[:, feature_mat], axis=3)
         mat = np.exp(mat)
-        sum_exp = np.sum(mat, axis=2).reshape((mat.shape[0], 1))
+        sum_exp = np.sum(mat, axis=2).reshape((mat.shape[0], -1, 1))
         mat /= sum_exp
         mat = np.mean(mat, axis=0)
     beam_width, num_c = mat.shape
@@ -112,9 +145,28 @@ def vectorized_mat_to_probs_for_beam_search(feature_mat, v, pptags, ptags, num_p
 
 
 def memm_viterbi_beam_search(num_h, mat_gen, v, beam_width, time_run=False, iprint=500):
+    """
+    infer tags using the viterbi algorithm with the beam search heuristic. the implementation uses scipy sparse
+    matrix to store pi, q and the bp.
+    :param num_h: number of histories
+    :param mat_gen: generating array that store the feature satisfied (in the format
+    described in vectorized_tri_mat_to_probs) with entry for request number given the history number for which
+    the request is acted iterator of pptag, ptag pair requested and the number of requests
+    :param v: v the weight of the model (if two dimensional store in each row is weight for different model
+    and the result are aggregated in vectorized_mat_to_probs_for_beam_search)
+    :param beam_width: the beam width
+    :param time_run: if true, times the run
+    :param iprint: if not None, print after every iprint iteration
+    :return: array of the infefered tags (as ints)
+    """
     tags_infer = []
     start = True
-    v = np.append(v, 0)
+    if len(v.shape) == 1:
+        v = np.append(v, 0)
+    else:
+        v_with_zeros = np.zeros((v.shape[0], v.shape[1]+1))
+        v_with_zeros[:, : -1] = v
+        v = v_with_zeros
     k = 0
     pi = []
     bp = []
@@ -191,11 +243,17 @@ def memm_viterbi_beam_search(num_h, mat_gen, v, beam_width, time_run=False, ipri
 
 
 def compute_accuracy(true_tags, tri_mat_gen, v, time_run=False, iprint=1000):
+    """computing the accuracy of the model using the veterbi algorithm (for the file tri_mat_gen generates the
+    arrays for)
+    true_tags is an array for the actual tags (as ints)"""
     tags_infer = memm_viterbi(len(true_tags), tri_mat_gen, v, time_run=time_run, iprint=iprint)
     return np.sum(true_tags == tags_infer)/len(true_tags)
 
 
 def compute_accuracy_beam(true_tags, mat_gen, v, beam_width, time_run=False, iprint=1000):
+    """computing the accuracy of the model using the veterbi algorithm with beam search with beam width beam_width
+    (for the file mat_gen generates the arrays for)
+    true_tags is an array for the actual tags (as ints)"""
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
     return np.sum(true_tags == tags_infer)/len(true_tags), tags_infer
 
@@ -212,6 +270,10 @@ def infer_tags(num_h, mat_gen, v, beam_width, tag_list, time_run=False, iprint=N
 
 def compute_accuracy_beam_with_hard_vote(true_tags, mat_gen, v, beam_width, time_run=False, iprint=None,
                                          first_weight=1):
+    """computing the accuracy of hard vote done between multiple models using hrad vote (chosing the tag most
+    model predicted) where the veterbi algorithm with beam search used for infernce for each model.
+    assumes that v is 2 dimensional and each row is the weight of different estimator.
+    first weight is the weight the first model is given (in the case there is one model that is more trusted)"""
     num_estimators = v.shape[0]
     num_h = len(true_tags)
     tags_infer_votes = np.empty((num_estimators + first_weight - 1, num_h), dtype=int)
@@ -225,6 +287,8 @@ def compute_accuracy_beam_with_hard_vote(true_tags, mat_gen, v, beam_width, time
 
 
 def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list, zero_diag=True):
+    """plot the confusion matrix for the ten tag our the model is most confused for (where inference is done using
+    beam search) if the zero_diag argument the diagonal is zeroed to allow the errors to be seen"""
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width)
     tags_infer_df = pd.Series(tags_infer, name='Predicted')
     true_tags_df = pd.Series(true_tags, name='Actual')
@@ -247,4 +311,28 @@ def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list, zero_diag
     plt.show()
 
 
-
+def get_test_statistics(true_tags, mat_gen, v, beam_width, sentence_indexes, num_sample=20):
+    """davids the test sentences to num_sample sample computing the accuracy on each one
+    and prints the mean, min, max and confidence interval using these results"""
+    num_s = len(sentence_indexes)
+    tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width)
+    correct_predicted = (true_tags == tags_infer)
+    correct_v_total = np.zeros((num_s, 2), dtype=int)
+    for i, (start, end) in enumerate(sentence_indexes):
+        correct_v_total[i, 0], correct_v_total[i, 1] = np.sum(correct_predicted[start: end]), end - start
+    perm = np.random.permutation(num_s)
+    sample_size = num_s//num_sample
+    res = np.zeros(num_sample)
+    for i in range(num_sample):
+        sample = perm[i * sample_size: (i+1) * sample_size]
+        num_correct = np.sum(correct_v_total[sample, 0])
+        num_total = np.sum(correct_v_total[sample, 1])
+        res[i] = num_correct / num_total
+    acc = np.mean(res)
+    sd = np.std(res)
+    interval_radius = 1.96 * sd / np.sqrt(num_sample)
+    print('mean accuracy:', acc)
+    print('min:', np.min(res))
+    print('max:', np.max(res))
+    print('confidence interval:', '[', acc - interval_radius, ',', acc + interval_radius, ']')
+    return res
