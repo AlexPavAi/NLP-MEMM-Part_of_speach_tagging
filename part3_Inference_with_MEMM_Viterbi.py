@@ -197,11 +197,13 @@ def compute_accuracy(true_tags, tri_mat_gen, v, time_run=False, iprint=1000):
 
 def compute_accuracy_beam(true_tags, mat_gen, v, beam_width, time_run=False, iprint=1000):
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
-    return np.sum(true_tags == tags_infer)/len(true_tags)
+    return np.sum(true_tags == tags_infer)/len(true_tags), tags_infer
 
 
-def infer_tags(true_tags, mat_gen, v, beam_width, tag_list, time_run=False, iprint=None):
-    tags_infer_ind = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
+def infer_tags(num_h, mat_gen, v, beam_width, tag_list, time_run=False, iprint=None):
+    """infer the tags in string format using veterbi algorithm with beam search (conversion to string done by using the
+    argument tag_list which is a list such that tag_list[i] == the string representation of the tag encoded as i"""
+    tags_infer_ind = memm_viterbi_beam_search(num_h, mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
     tags_infer = []
     for ind in tags_infer_ind:
         tags_infer.append(tag_list[ind])
