@@ -1004,12 +1004,12 @@ def get_all_gt_tags_ordered(file_path):
     all_tags_gt_ordered = []
     exceptional_line_endings = [".", "!", "?"]
     with open(file_path) as f:
-        for line in f:
+        for row, line in enumerate(f):
             splited_words = line.split(' ')
             if splited_words[-1].split('_')[0] in exceptional_line_endings:
                 del splited_words[-1]
             for word_idx in range(len(splited_words)):
-                # print(splited_words[word_idx])
+                # print(f'row: {row}, word_tag: {splited_words[word_idx]}')
                 cur_word, cur_tag = splited_words[word_idx].split('_')
                 all_tags_gt_ordered.append(cur_tag)
     return all_tags_gt_ordered
@@ -1127,7 +1127,7 @@ def train_models(weights_path, feature_path, model):
     return v, my_feature2id_class
 
 
-def use_trained_model(weights_path, feature_path, tags_infer_file_name):
+def use_trained_model(weights_path, feature_path, tags_infer_file_name, test_path, test_file):
     with open(weights_path, 'rb') as f:
         v = pickle.load(f)[0]
     with open(feature_path, 'rb') as f:
@@ -1136,7 +1136,7 @@ def use_trained_model(weights_path, feature_path, tags_infer_file_name):
     tag_to_ind = my_feature2id_class.tag_to_ind
     num_features = my_feature2id_class.num_feature_class
     '''rest of the code here for example testing on test1'''
-    test_path = os.path.join("data", "test1.wtag")
+    test_path = os.path.join(test_path, test_file)
     test_history_quadruple_table = collect_history_quadruples(test_path)
     test_tags_ordered = get_all_gt_tags_ordered(test_path)
     true_tags_test = np.array([tag_to_ind.get(x, -1) for x in test_tags_ordered])
@@ -1152,32 +1152,43 @@ def use_trained_model(weights_path, feature_path, tags_infer_file_name):
     #print(score)
 
 
-def tag_file(file_to_tag, new_tagged_file_name, tags_infer):
+def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
     exceptional_line_endings = [".", "!", "?"]
     curr_tag = 0
     total_num_of_words_in_file = 0
     extra_manual_tags = 0
-    with open(os.path.join("data", file_to_tag)) as f:
+    with open(os.path.join(path_file_to_tag, file_to_tag)) as f:
         tagged_file = open(new_tagged_file_name, 'w')
         for line in f:
-           words_tags = line.split(' ')
+           words_tags = line.split()
            total_num_of_words_in_file += len(words_tags)
-           for word_tag in words_tags:
+           for index, word_tag in enumerate(words_tags):
                 word = word_tag.split("_")[0]
 
-                if word == words_tags[-1].split("_")[0] and word in exceptional_line_endings: # if last word is in exceptional endings:
+                if index == len(words_tags) - 1 and word in exceptional_line_endings: # if last word is in exceptional endings:
                     tagged_file.write(word + "_.")
                     extra_manual_tags += 1
                 else:
                     curr_infered_tag = tags_infer[curr_tag]
                     curr_tag += 1
                     tagged_file.write(word + "_" + curr_infered_tag)
-                    if word != words_tags[-1].split("_")[0]:  # if not last word in line, add white space
+                    if index < len(words_tags) - 1:  # if not last word in line, add white space
                         tagged_file.write(" ")
 
            tagged_file.write("\n")
     print(f'total tags number: {len(tags_infer) + extra_manual_tags}, total words: {total_num_of_words_in_file}')
 
+
+def generate_dummy_tagged_file(path_file_to_tag, file_to_tag):
+    with open(os.path.join(path_file_to_tag, file_to_tag)) as f:
+        dummy_tagged_file = open("dummy", 'w')
+        for line in f:
+            words = line.split()
+            for idx, word in enumerate(words):
+                dummy_tagged_file.write(word + "_TAG")
+                if idx < len(words) - 1:
+                    dummy_tagged_file.write(" ")
+            dummy_tagged_file.write("\n")
 
 def compare_tagging_results(gt_tagged_file, inference_tagged_file):
     gt_tags = np.array(get_all_gt_tags_ordered(gt_tagged_file))
@@ -1192,6 +1203,14 @@ def main():
     weights_path_small = "small_model_weights"
     feature_path_small = "small_model_features"
     model = 'small'
+
+
+    tags_infer_file_name = "tags_infer_small_model_small_model"
+    new_tagged_file_name = "small_tagged_by_small_model"
+    comp1_file = "comp1.words"
+    comp2_file = "comp2.words"
+    test_path = "data"
+    test_file = comp1_file
     # v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
     #
     weights_path_big = "big_model_weights"
@@ -1203,22 +1222,30 @@ def main():
     tags_infer_file_name = "tags_infer_big_model_test1"
     new_tagged_file_name = "test1_tagged_by_big_model"
     #
-    # tags_infer_file_name = "tags_infer_small_model_small_model"
-    # new_tagged_file_name = "small_tagged_by_small_model"
+
     #
-    # use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name)
+    #generate_dummy_tagged_file(test_path, file_to_tag)
+    dummy_path = ""
+    dummy_file = "dummy"
+
+    # use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, dummy_path, dummy_file)
+
+
     # #
     with open(tags_infer_file_name, 'rb') as f:
         tags_infer = pickle.load(f)
 
-    tag_file(file_to_tag, new_tagged_file_name, tags_infer)
-    #
-    #
-    #
-    # score_small_on_small = compare_tagging_results(os.path.join("data","train2.wtag"), new_tagged_file_name)
-    # print(score_small_on_small)
-    score_big_on_test1 = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name)
-    print(score_big_on_test1)
+    tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    #os.remove("dummy")
+    # #
+    # #
+    # #
+    score_small_on_small = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name)
+    print(score_small_on_small)
+    # score_big_on_test1 = compare_tagging_results(os.path.join("data","train2.wtag"), new_tagged_file_name)
+    # print(score_big_on_test1)
+
+
 
 
     # tag_file(file, new_tagged_file_name, tags_infer, feature_path_small)
