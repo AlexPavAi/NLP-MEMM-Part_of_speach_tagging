@@ -841,11 +841,6 @@ def collect_history_quadruples(file_path):
 
                 curr_quadruple_history = (ppword, pptag, pword, ptag, cword, ctag, nword, ntag)
                 history_table.append((line_num, curr_quadruple_history))
-                # if line_num == 322:
-                #     print(word_idx)
-                #     print(splited_words)
-                #     print(curr_quadruple_history)
-
 
     return history_table
 
@@ -863,15 +858,10 @@ def generate_table_of_history_tags_features_for_training(my_feature2id_class, hi
     history_tags_features_table_for_training = np.empty((num_history_quadruple_elements, amount_of_tags), dtype=object)
 
     matrix_size = num_history_quadruple_elements * amount_of_tags
-    # element_counter = 0
     for history_index, curr_history_quadruple in enumerate(history_quadruple_table):
         for ctag_index, ctag in enumerate(tags_list):
             curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class, ctag)
             history_tags_features_table_for_training[history_index, ctag_index] = curr_feature_vector
-            # element_counter += 1
-            # if element_counter % (round(matrix_size / 10)) == 0:
-            #     print(f'{round(100 * element_counter / matrix_size)}% finished')
-
     return history_tags_features_table_for_training
 
 
@@ -892,13 +882,9 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
     amount_of_tags = len(tags_list)
     asterisk = '*'
     asterisk_index = tags_list.index(asterisk)
-    # progress_counter = 0
 
     curr_history_quadruple = history_quadruple_table[history_num]
-    # print(curr_history_quadruple[1])
-    # print(curr_history_quadruple)
-    # if curr_history_quadruple[0] == 322:
-    #     print(curr_history_quadruple)
+
     # if curr word is the beginning of the sentence, allow previous two tags to be asterisk only #
     if curr_history_quadruple[1][0] == asterisk and curr_history_quadruple[1][2] == asterisk:
         history_tags_features_table = np.full((1, 1, amount_of_tags, num_features), -1, dtype=np.int32)
@@ -908,15 +894,11 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
         ptag = asterisk
         ptag_index = asterisk_index
         for ctag_index, ctag in enumerate(tags_list):
-            # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
             curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1],
                                                                                  my_feature2id_class, num_features,
                                                                                  history_tags_features_table,
                                                                                  (pptag_index, ptag_index, ctag_index),
                                                                                  ctag, pptag, ptag)
-            # progress_counter += 1
-            # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
-            #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     # if curr word is the second word of the sentence, allow the tag of the word which is 2 words behind to be asterisk only #
     elif curr_history_quadruple[1][0] == asterisk:
@@ -926,15 +908,11 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
         pptag_index = asterisk_index
         for ptag_index, ptag in enumerate(tags_list):
             for ctag_index, ctag in enumerate(tags_list):
-                # curr_feature_vector = represent_input_with_features(curr_history_quadruple[1], my_feature2id_class,ctag, pptag, ptag)
                 curr_feature_vector = represent_input_with_features_for_test(curr_history_quadruple[1],
                                                                                  my_feature2id_class, num_features,
                                                                                  history_tags_features_table,
                                                                                  (pptag_index, ptag_index, ctag_index),
                                                                                  ctag, pptag, ptag)
-                # progress_counter += 1
-                # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
-                #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     # for the third word in the sentence and after, no problems for previous tags, therefore insert to table all possibilities #
     else:
@@ -949,9 +927,6 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
                                                                                  history_tags_features_table,
                                                                                  (pptag_index, ptag_index, ctag_index),
                                                                                  ctag, pptag, ptag)
-                    # progress_counter += 1
-                    # if progress_counter % (round(table_total_num_different_entries / 10)) == 0:
-                    #     print(f'{round(100 * progress_counter / table_total_num_different_entries)}% finished')
 
     is_last_word_in_sentence = False
     if curr_history_quadruple[1][6] == 'STOP':
@@ -1150,6 +1125,7 @@ def use_trained_model(weights_path, feature_path, tags_infer_file_name, test_pat
     with open(tags_infer_file_name, 'wb') as f:
         pickle.dump(tags_infer, f)
     #print(score)
+    return tags_infer
 
 
 def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
@@ -1158,7 +1134,7 @@ def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
     total_num_of_words_in_file = 0
     extra_manual_tags = 0
     with open(os.path.join(path_file_to_tag, file_to_tag)) as f:
-        tagged_file = open(new_tagged_file_name, 'w')
+        tagged_file = open(new_tagged_file_name + ".wtag", 'w')
         for line in f:
            words_tags = line.split()
            total_num_of_words_in_file += len(words_tags)
@@ -1197,198 +1173,56 @@ def compare_tagging_results(gt_tagged_file, inference_tagged_file):
     return score
 
 
-def main():
-
-
-    weights_path_small = "small_model_weights"
-    feature_path_small = "small_model_features"
-    model = 'small'
-
-
-    tags_infer_file_name = "tags_infer_small_model_small_model"
-    new_tagged_file_name = "small_tagged_by_small_model"
-    comp1_file = "comp1.words"
-    comp2_file = "comp2.words"
-    test_path = "data"
-    test_file = comp1_file
-    # v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
-    #
+def tag_competition_files():
+    # tag comp1 #
     weights_path_big = "big_model_weights"
     feature_path_big = "big_model_features"
-    model = 'big'
-    # v, my_feature2id_class = train_models(weights_path_big, feature_path_big, model)
+    tags_infer_file_name = "tags_infer_big_model_comp1"
+    comp1_file = "comp1.words"
+    test_path = "data"
+    file_to_tag = comp1_file
+    new_tagged_file_name = "comp1_m1_304823560"
 
-    file_to_tag = "test1.wtag"
-    tags_infer_file_name = "tags_infer_big_model_test1"
-    new_tagged_file_name = "test1_tagged_by_big_model"
-    #
-
-    #
-    #generate_dummy_tagged_file(test_path, file_to_tag)
+    generate_dummy_tagged_file(test_path, file_to_tag)
     dummy_path = ""
     dummy_file = "dummy"
 
-    # use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, dummy_path, dummy_file)
-
-
-    # #
-    with open(tags_infer_file_name, 'rb') as f:
-        tags_infer = pickle.load(f)
+    tags_infer = use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, dummy_path, dummy_file)
 
     tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
-    #os.remove("dummy")
-    # #
-    # #
-    # #
-    score_small_on_small = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name)
-    print(score_small_on_small)
-    # score_big_on_test1 = compare_tagging_results(os.path.join("data","train2.wtag"), new_tagged_file_name)
-    # print(score_big_on_test1)
+    os.remove("dummy")
+
+    # tag comp2 #
+    weights_path_small = "small_model_weights"
+    feature_path_small = "small_model_features"
+    tags_infer_file_name = "tags_infer_small_model_comp2"
+    comp1_file = "comp2.words"
+    test_path = "data"
+    file_to_tag = comp1_file
+    new_tagged_file_name = "comp2_m2_304823560"
+
+    generate_dummy_tagged_file(test_path, file_to_tag)
+    dummy_path = ""
+    dummy_file = "dummy"
+
+    tags_infer = use_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, dummy_path, dummy_file)
+
+    tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    os.remove("dummy")
 
 
+def main():
+    tag_competition_files()
 
+    # weights_path_small = "small_model_weights"
+    # feature_path_small = "small_model_features"
+    # model = 'small'
 
-    # tag_file(file, new_tagged_file_name, tags_infer, feature_path_small)
-    #
-    # print(" ")
+    # v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
 
-    # start_time_section_1 = time.time()
-    # # best pararms small model: alpha = 0.1, thresholds = 2, beam = 2, score = 0.934302, features = all first 8
-    # # best params big model: alpha = 0.35, thresholds = 0 beam =2, score = 0.9557, features = all first 8 without 103
-    # # defining hyper-parameters #
-    # min_length_of_suf_pre_fix = 1
-    # max_length_suf_pre_fix = 4
-    # alpha_big_model = 0.1  # regularization term (0.1 best)
-    # alpha_small_model = 0.05  # (0.000001 best)
-    # my_alpha = alpha_small_model
-    # num_dicts = 11  # number of different feauture types
-    # num_additional_features = (max_length_suf_pre_fix - min_length_of_suf_pre_fix + 1) * 2
-    # num_features = num_dicts + num_additional_features  # total number of different features (different lengths for suff/prefixes)
-    # features_list = [1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0]   # binary array that determines which features are participating
-    # my_num_occurrences_thresholds = np.ones(num_features)  # vector of thresholds
-    # #num_occurrences_thresholds[5 + num_additional_features] = 2
-    #
-    # # features_list = np.random.randint(2, size=num_dicts)
-    # scores = {}
-    # file_path = os.path.join("data", "train2.wtag")
-    # test_path = os.path.join("data", "train2.wtag")
-    #
-    # # tags1, tags2, diff = find_differences_in_possible_tags(file_path, test_path)
-    # # all_words_in_text = get_all_words_ordered(file_path)
-    # # all_words_unique = set(all_words_in_text)
-    #
-    # # generate statistic class and count all features #
-    # my_feature_statistics_class = FeatureStatisticsClass(num_dicts)
-    #
-    # my_feature_statistics_class.get_word_tag_pair_count_100(file_path)
-    # my_feature_statistics_class.get_word_tag_pair_count_101(file_path, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
-    # my_feature_statistics_class.get_word_tag_pair_count_102(file_path, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
-    # my_feature_statistics_class.get_tag_threesome_count_103(file_path)
-    # my_feature_statistics_class.get_tag_couples_count_104(file_path)
-    # my_feature_statistics_class.get_tag_count_105(file_path)
-    # my_feature_statistics_class.get_prev_word_curr_tag_pair_count_106(file_path)
-    # my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
-    # my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
-    # # my_feature_statistics_class.get_tag_word_count_capital_letter(file_path)
-    # # my_feature_statistics_class.get_tag_foursome_count(file_path)
-    # my_feature_statistics_class.get_tag_threesome_count_tag_cur_word_prev_word(file_path)
-    # # my_feature_statistics_class.get_tag_is_first_in_sentence(file_path)
-    #
-    #
-    # curr_percentile = 5
-    # # percentiles = my_feature_statistics_class.get_percentiles(curr_percentile)
-    #
-    #
-    # # num_occurrences_thresholds = [x + 1 for x in percentiles]
-    #
-    # # generate indices for all features that appear above a specified threshold #
-    #
-    # for alpha_coeff in range(2, 3):
-    #     for th_coeff in range(0, 1):
-    #         for beam_width in range(2, 3):
-    #
-    #             # alpha = my_alpha * math.pow(10, alpha_coeff)
-    #             alpha = my_alpha * alpha_coeff
-    #             num_occurrences_thresholds = my_num_occurrences_thresholds * th_coeff
-    #
-    #
-    #             my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix)
-    #             my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features, min_length_of_suf_pre_fix, max_length_suf_pre_fix, features_list)
-    #
-    #             # generate a history quadruple table for train #
-    #             history_quadruple_table = collect_history_quadruples(file_path)
-    #
-    #             # generate a history quadruple table for test #
-    #             test_history_quadruple_table = collect_history_quadruples(test_path)
-    #
-    #             # generate a list of all possible tags and make it indexed according to appearance order in the set of tags #
-    #             train_tags_ordered = get_all_gt_tags_ordered(file_path)
-    #
-    #             tags_list = []
-    #             tags_list = list(tags_list)
-    #             tags_list.append('*')
-    #             tag_set = set(train_tags_ordered)
-    #             num_tags = len(tag_set)
-    #             tag_to_ind = {'*': 0}
-    #             for i, tag in enumerate(tag_set):
-    #                 tags_list.append(tag)
-    #                 tag_to_ind[tag] = i + 1
-    #
-    #             train_correct_tags_ordered_indexed = [tag_to_ind[x] for x in train_tags_ordered]
-    #
-    #             # test tags
-    #             test_tags_ordered = get_all_gt_tags_ordered(test_path)
-    #             test_correct_tags_ordered_indexed = [tag_to_ind.get(x, -1) for x in test_tags_ordered]  # all indices of tags (in the unique tag set) in order of appearance in text
-    #
-    #             # generate a table with entries: (history_quadruple, ctag), that contains a matching feature #
-    #             history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
-    #                                                                                                             history_quadruple_table,
-    #                                                                                                             tags_list)
-    #             end_time_section_1 = time.time()
-    #             total_time = end_time_section_1 - start_time_section_1
-    #             print(f'total time for section 1 is: {total_time} seconds')
-    #             true_tags_train = np.array(train_correct_tags_ordered_indexed)
-    #             true_tags_test = np.array(test_correct_tags_ordered_indexed)
-    #
-    #             #beam_width = 7
-    #             mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
-    #                                                                                                 test_history_quadruple_table,
-    #                                                                                                 tags_list, h, num_features,
-    #                                                                                                 requests, beam_width)
-    #
-    #             # v = train_from_list(history_tags_features_table_for_training, true_tags_train, alpha, time_run=True)
-    #             #
-    #             # score = compute_accuracy_beam(true_tags_test, mat_gen, v, beam_width, time_run=True, iprint=500)
-    #             # print(score)
-    #             # # scores[(str(features_list))] = score
-    #             # scores[((alpha_coeff, th_coeff, beam_width))] = score
-    #             # # print(f'best features vector is {max(scores, key=scores.get)}')
-    #             # # print(f' best  is: {scores[max(scores, key=scores.get)]}')
-    #             #
-    #             # # print("")
-    #
-    #             training_procedure = lambda table, tags: train_from_list(table, tags, alpha,
-    #                                                                      num_f=my_feature2id_class.n_total_features)
-    #
-    #             def tester(table, true_tags, v):
-    #                 mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
-    #                                                                                                      table,
-    #                                                                                                      tags_list, h, num_features,
-    #                                                                                                      requests, beam_width)
-    #                 return compute_accuracy_beam(true_tags, mat_gen, v, beam_width)
-    #
-    #             sentence_indexs = sentence_index_from_history_table(history_quadruple_table)
-    #             score = (np.mean(k_fold_cross_validation(history_quadruple_table, history_tags_features_table_for_training,
-    #                                                   sentence_indexs, training_procedure, tester,
-    #                                                   true_tags_train)))
-    #             print(score)
-    #             scores[((alpha_coeff, th_coeff, beam_width))] = score
-    #
-    #
-    # best_params = max(scores, key=scores.get)
-    # print(f'params {best_params}')
-    # print(f' best params: alpha: {my_alpha * best_params[0] }, thresholds: {best_params[1] * my_num_occurrences_thresholds}, beam width: {best_params[2]}')
-    # print(f' best  is: {scores[max(scores, key=scores.get)]}')
+    # score_small_on_small = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name)
+    # print(score_small_on_small)
+
 
 if __name__ == '__main__':
     main()
