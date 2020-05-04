@@ -311,7 +311,7 @@ def plot_confusion_matrix(true_tags, mat_gen, v, beam_width, tag_list, zero_diag
     plt.show()
 
 
-def get_test_statistics(true_tags, mat_gen, v, beam_width, sentence_indexes, num_sample=20):
+def get_test_statistics(true_tags, mat_gen, v, beam_width, sentence_indexes, num_sample=10, shuffle=False):
     """davids the test sentences to num_sample sample computing the accuracy on each one
     and prints the mean, min, max and confidence interval using these results"""
     num_s = len(sentence_indexes)
@@ -320,7 +320,10 @@ def get_test_statistics(true_tags, mat_gen, v, beam_width, sentence_indexes, num
     correct_v_total = np.zeros((num_s, 2), dtype=int)
     for i, (start, end) in enumerate(sentence_indexes):
         correct_v_total[i, 0], correct_v_total[i, 1] = np.sum(correct_predicted[start: end]), end - start
-    perm = np.random.permutation(num_s)
+    if shuffle:
+        perm = np.random.permutation(num_s)
+    else:
+        perm = np.arange(num_s)
     sample_size = num_s//num_sample
     res = np.zeros(num_sample)
     for i in range(num_sample):
