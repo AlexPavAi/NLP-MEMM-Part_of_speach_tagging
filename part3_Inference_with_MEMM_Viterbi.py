@@ -255,7 +255,7 @@ def compute_accuracy_beam(true_tags, mat_gen, v, beam_width, time_run=False, ipr
     (for the file mat_gen generates the arrays for)
     true_tags is an array for the actual tags (as ints)"""
     tags_infer = memm_viterbi_beam_search(len(true_tags), mat_gen, v, beam_width, time_run=time_run, iprint=iprint)
-    return np.sum(true_tags == tags_infer)/len(true_tags), tags_infer
+    return np.sum(true_tags == tags_infer)/len(true_tags)
 
 
 def infer_tags(num_h, mat_gen, v, beam_width, tag_list, time_run=False, iprint=None):

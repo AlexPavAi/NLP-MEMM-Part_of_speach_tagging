@@ -670,21 +670,22 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
     return features
 
 
-
-
 def represent_input_with_features_for_test(history, Feature2idClass, num_features,
                                            history_tags_features_table, ind,
                                            ctag_input=None, pptag_input=None, ptag_input=None):
     """
-        Extract feature vector in per a given history
-        :param history: touple{ppword, pptag, pword, ptag, cword, ctag, nword, ntag}
-        :param Feature2idClass - in order to be able to reach easily all its methods
-        :param ctag_input
-        :param pptag_input
-        :param ptag input
-        pay attention to the order!!!
-            Return a list with all features that are relevant to the given history in a numpy array format, for runtime
-            enhancement
+           Extract feature vector in per a given history and tags using the fact that for only one feature is satisfied
+           from each class (when each prefix/suffix length considered a different class) to accelerate the run time
+           using vectorized compution. The features will be stored in is an array that will store for each feature
+           class the feature satifaied if there is on or -1 if non feature from the class is satifaied.
+           :param ind: the index of table to store the output
+           :param history_tags_features_table: the table that will store the feature
+           :param history: touple{ppword, pptag, pword, ptag, cword, ctag, nword, ntag}
+           :param Feature2idClass - in order to be able to reach easily all its methods
+           :param ctag_input: input different ctag than the history's ctag
+           :param pptag_input: input different ptag than the history's ctag
+           :param ptag input: input different pptag than the history's ctag
+
     """
     ppword = history[0]
     pptag = history[1]
@@ -870,11 +871,11 @@ def get_table_of_features_for_given_history_num(my_feature2id_class, history_qua
     """
 
     :param my_feature2id_class:
-    :param history_quadruple_table:
-    :param tags_list:
-    :param history_num:
+    :param history_quadruple_table: table of all histories in length 4 from text (the same number of words in text)
+    :param tags_list: list of tags
+    :param history_num: number of history the table requseted for
     :return:
-    1) table of features for every possibility of pptag X ptag X ctag X history that corresponds to history num
+    1) table of features for every possibility of pptag X ptag X ctag that corresponds to history num
     2) the number of sentence in which this history appears
     3) boolean - is this the last word in the sentence
     """
@@ -938,12 +939,15 @@ def get_beam_of_features_for_given_history_num(my_feature2id_class, history_quad
                                                tags_list, history_num, num_features, requests, beam_width):
     """
 
-    :param my_feature2id_class:
-    :param history_quadruple_table:
-    :param tags_list:
-    :param history_num:
+    :param beam_width: the beam width
+    :param requests: iterator for pptags an d ptags requested
+    :param num_features: number of feature classes
+    :param my_feature2id_class
+    :param history_quadruple_table: table of all histories in length 4 from text (the same number of words in text)
+    :param tags_list: list of tags
+    :param history_num: number of history the table requseted for
     :return:
-    1) table of features for every possibility of pptag X ptag X ctag X history that corresponds to history num
+    1) table of features for every request in requests to history num
     2) the number of sentence in which this history appears
     3) boolean - is this the last word in the sentence
     """
@@ -1031,6 +1035,7 @@ def find_differences_in_possible_tags(file_path1, file_path2):
 
 
 def sentence_index_from_history_table(history_table):
+    """:returns an list res such that range(res[i][0], res[i][1]) is the indexes of the words of sentence i"""
     curr_sentence = history_table[0][0]
     res = [[0]]
     for i, ent in enumerate(history_table):
@@ -1044,6 +1049,16 @@ def sentence_index_from_history_table(history_table):
 
 def k_fold_cross_validation(history_table, history_tag_table, sentence_indexs,
                             training_procedure, tester, true_tags, k=5):
+    """
+        :param history_table: history quadruple table of the text
+        :param history_tag_table: feature list table of history X ctag for training
+        :param sentence_indexes: indexes for beginnig and ending of the sentence
+        :param training_procedure: function that trains the model
+        :param tester: function that test trained model on test history quadruple table
+        :param true_tags: the true tags (as ints)
+        :param k: the number of folds
+        :return: the accuray on each fo the folds
+    """
     res = np.zeros(k)
     num_s = len(sentence_indexs)
     fold_size = int(num_s/k)
@@ -1058,7 +1073,79 @@ def k_fold_cross_validation(history_table, history_tag_table, sentence_indexs,
     return res
 
 
+def cross_validate(file_path, print_stat, alpha, thresholds, beam, features_list):
+    """
+
+    :param print_stat: if True print statistics for the accuracy on the folds
+    :param file_path: path of the file
+    :return: the mean accuracy
+    """
+    min_length_of_suf_pre_fix = 1
+    max_length_suf_pre_fix = 4
+    num_dicts = 11  # number of different feauture types
+    num_additional_features = (max_length_suf_pre_fix - min_length_of_suf_pre_fix + 1) * 2
+    num_features = num_dicts + num_additional_features
+    num_occurrences_thresholds = np.ones(num_features) * thresholds
+
+    my_feature_statistics_class = FeatureStatisticsClass(num_dicts)
+
+    my_feature_statistics_class.get_word_tag_pair_count_100(file_path)
+    my_feature_statistics_class.get_word_tag_pair_count_101(file_path, min_length_of_suf_pre_fix,
+                                                            max_length_suf_pre_fix)
+    my_feature_statistics_class.get_word_tag_pair_count_102(file_path, min_length_of_suf_pre_fix,
+                                                            max_length_suf_pre_fix)
+    my_feature_statistics_class.get_tag_threesome_count_103(file_path)
+    my_feature_statistics_class.get_tag_couples_count_104(file_path)
+    my_feature_statistics_class.get_tag_count_105(file_path)
+    my_feature_statistics_class.get_prev_word_curr_tag_pair_count_106(file_path)
+    my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
+    my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
+    my_feature_statistics_class.get_tag_threesome_count_tag_cur_word_prev_word(file_path)
+    my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features,
+                                          min_length_of_suf_pre_fix, max_length_suf_pre_fix)
+    my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features, min_length_of_suf_pre_fix,
+                                                           max_length_suf_pre_fix, features_list)
+    train_tags_ordered = get_all_gt_tags_ordered(file_path)
+    tags_list = []
+    tags_list = list(tags_list)
+    tags_list.append('*')
+    tag_set = set(train_tags_ordered)
+    tag_to_ind = {'*': 0}
+    for i, tag in enumerate(tag_set):
+        tags_list.append(tag)
+        tag_to_ind[tag] = i + 1
+    my_feature2id_class.tag_list = tags_list
+    my_feature2id_class.tag_to_ind = tag_to_ind
+    my_feature2id_class.num_feature_class = num_features
+    history_quadruple_table = collect_history_quadruples(file_path)
+    true_tags = np.array([tag_to_ind[x] for x in train_tags_ordered])
+    history_tags_features_table_for_training = generate_table_of_history_tags_features_for_training(my_feature2id_class,
+                                                                                                    history_quadruple_table,
+                                                                                                    tags_list)
+    sentence_indexes = sentence_index_from_history_table(history_quadruple_table)
+    training_procedure = lambda train, tags: train_from_list(train, tags, alpha)
+    def tester(test, tags, v):
+        mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class, test,
+                                                                                             tags_list, h, num_features,
+                                                                                             requests, beam_width)
+        return compute_accuracy_beam(tags, mat_gen, v, beam, time_run=False, iprint=None)
+    acc = k_fold_cross_validation(history_quadruple_table, history_tags_features_table_for_training, sentence_indexes,
+                                  training_procedure, tester, true_tags)
+    if print_stat:
+        print('mean:', np.mean(acc))
+        print('min:', np.min(acc))
+        print('max:', np.max(acc))
+    return acc
+
+
 def train_models(weights_path, feature_path, model):
+    """
+    train the model with the best parameters found and saves them
+    :param weights_path: path to save the weights
+    :param feature_path: path to save the features dictionaries
+    :param model: training the small or large models
+    :return: returns the weights and feature class of the best
+    """
     min_length_of_suf_pre_fix = 1
     max_length_suf_pre_fix = 4
     num_dicts = 11  # number of different feauture types
@@ -1118,7 +1205,38 @@ def train_models(weights_path, feature_path, model):
     return v, my_feature2id_class
 
 
-def use_trained_model(weights_path, feature_path, tags_infer_file_name, test_path, test_file):
+def test_trained_model(weights_path, feature_path, test_path, test_file):
+    """tests trained model"""
+    with open(weights_path, 'rb') as f:
+        v = pickle.load(f)[0]
+    with open(feature_path, 'rb') as f:
+        my_feature2id_class = pickle.load(f)
+    tags_list = my_feature2id_class.tag_list
+    tag_to_ind = my_feature2id_class.tag_to_ind
+    num_features = my_feature2id_class.num_feature_class
+    test_path = os.path.join(test_path, test_file)
+    test_history_quadruple_table = collect_history_quadruples(test_path)
+    test_tags_ordered = get_all_gt_tags_ordered(test_path)
+    true_tags_test = np.array([tag_to_ind.get(x, -1) for x in test_tags_ordered])
+    mat_gen = lambda h, requests, beam_width: get_beam_of_features_for_given_history_num(my_feature2id_class,
+                                                                                         test_history_quadruple_table,
+                                                                                         tags_list, h, num_features,
+                                                                                         requests, beam_width)
+    score = compute_accuracy_beam(true_tags_test, mat_gen, v, 2, time_run=False)
+    print(score)
+    return score
+
+
+def infer_using_trained_model(weights_path, feature_path, tags_infer_file_name, test_path, test_file):
+    """
+
+    :param weights_path: path of the weights
+    :param feature_path: path for loading feature class
+    :param tags_infer_file_name: path to save inferred tags
+    :param test_path: path for directory of the test
+    :param test_file: the name of the test file
+    :return: the inferred tags
+    """
     with open(weights_path, 'rb') as f:
         v = pickle.load(f)[0]
     with open(feature_path, 'rb') as f:
@@ -1136,14 +1254,12 @@ def use_trained_model(weights_path, feature_path, tags_infer_file_name, test_pat
                                                                                          tags_list, h, num_features,
                                                                                          requests, beam_width)
     num_h = len(test_history_quadruple_table)
-    tags_infer = infer_tags(num_h ,mat_gen, v, 2, tags_list, time_run= True, iprint= 500)
-    #score, tags_infer = compute_accuracy_beam(true_tags_test, mat_gen, v, 2, time_run=True, iprint=500)
+    tags_infer = infer_tags(num_h ,mat_gen, v, 2, tags_list)
     with open(tags_infer_file_name, 'wb') as f:
         pickle.dump(tags_infer, f)
-    #print(score)
     return tags_infer
 
-# 
+
 def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
     special_words_tags = ['-RRB-', "''"]
     exceptional_line_endings = [".", "!", "?"]
@@ -1208,7 +1324,7 @@ def tag_competition_files():
     dummy_path = ""
     dummy_file = "dummy"
 
-    tags_infer = use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, dummy_path, dummy_file)
+    tags_infer = infer_using_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, dummy_path, dummy_file)
 
     tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     os.remove("dummy")
@@ -1226,7 +1342,7 @@ def tag_competition_files():
     dummy_path = ""
     dummy_file = "dummy"
 
-    tags_infer = use_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, dummy_path, dummy_file)
+    tags_infer = infer_using_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, dummy_path, dummy_file)
 
     tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     os.remove("dummy")
@@ -1274,10 +1390,11 @@ def main():
     # generate_dummy_tagged_file(test_path, file_to_tag)
     # dummy_path = ""
     # dummy_file = "dummy"
+    # train_models("big_model_weights", "big_model_features", 'big')
+    tags_infer = infer_using_trained_model("big_model_weights", "big_model_features", tags_infer_file_name, test_path,
+                                           file_to_tag)
 
-    #tags_infer = use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, test_path, file_to_tag)
-
-    #tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     # os.remove("dummy")
 
     score = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name + '.wtag')
