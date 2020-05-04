@@ -1143,7 +1143,7 @@ def use_trained_model(weights_path, feature_path, tags_infer_file_name, test_pat
     #print(score)
     return tags_infer
 
-
+# 
 def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
     special_words_tags = ['-RRB-', "''"]
     exceptional_line_endings = [".", "!", "?"]
