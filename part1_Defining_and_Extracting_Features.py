@@ -1145,6 +1145,7 @@ def use_trained_model(weights_path, feature_path, tags_infer_file_name, test_pat
 
 
 def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
+    special_words_tags = ['-RRB-', "''"]
     exceptional_line_endings = [".", "!", "?"]
     curr_tag = 0
     total_num_of_words_in_file = 0
@@ -1161,7 +1162,10 @@ def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
                     tagged_file.write(word + "_.")
                     extra_manual_tags += 1
                 else:
-                    curr_infered_tag = tags_infer[curr_tag]
+                    if word in special_words_tags:
+                        curr_infered_tag = word
+                    else:
+                        curr_infered_tag = tags_infer[curr_tag]
                     curr_tag += 1
                     tagged_file.write(word + "_" + curr_infered_tag)
                     if index < len(words_tags) - 1:  # if not last word in line, add white space
@@ -1233,7 +1237,7 @@ def main():
 
     # weights_path_small = "small_model_weights"
     # feature_path_small = "small_model_features"
-    # model = 'small'
+
     # tags_infer_file_name = "tags_infer_small_model_comp2"
     # comp1_file = "comp2.words"
     # test_path = "data"
@@ -1244,22 +1248,28 @@ def main():
     # # generate_dummy_tagged_file(test_path, file_to_tag)
     # # dummy_path = ""
     # # dummy_file = "dummy"
+
+    weights_path_big = "big_model_weights"
+    feature_path_big = "big_model_features"
+    model = 'big'
+    tags_infer_file_name = "tags_infer_big_model_test1"
+    test1_file = "test1.wtag"
+    # comp1_file = "comp1.words"
+    test_path = "data"
+    file_to_tag = test1_file
+    new_tagged_file_name = "test1_tagged_by_big_model_latest"
     #
-    # v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
+    #v, my_feature2id_class = train_models(weights_path_big, feature_path_big, model)
     #
-    # tags_infer = use_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, test_path, test_file)
+    #tags_infer = use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, test_path, file_to_tag)
     #
-    # tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    tags_infer = pickle.load(open(tags_infer_file_name, "rb"))
+    tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     # # os.remove("dummy")
 
     weights_path_big = "big_model_weights"
     feature_path_big = "big_model_features"
-    tags_infer_file_name = "tags_infer_big_model_test1"
-    test1_file = "test1.wtag"
-    #comp1_file = "comp1.words"
-    test_path = "data"
-    file_to_tag = test1_file
-    new_tagged_file_name = "test1_tagged_by_big_model_latest"
+
 
     # generate_dummy_tagged_file(test_path, file_to_tag)
     # dummy_path = ""
