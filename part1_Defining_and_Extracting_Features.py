@@ -807,7 +807,7 @@ def collect_history_quadruples(file_path):
     exceptional_line_endings = [".", "!", "?"]
     with open(file_path) as f:
         for line_num, line in enumerate(f):
-            splited_words = line.split(' ')
+            splited_words = line.split()
             if splited_words[-1].split('_')[0] in exceptional_line_endings:
                 del splited_words[-1]
             num_words_in_line = len(splited_words)
@@ -980,7 +980,7 @@ def get_all_gt_tags_ordered(file_path):
     exceptional_line_endings = [".", "!", "?"]
     with open(file_path) as f:
         for row, line in enumerate(f):
-            splited_words = line.split(' ')
+            splited_words = line.split()
             if splited_words[-1].split('_')[0] in exceptional_line_endings:
                 del splited_words[-1]
             for word_idx in range(len(splited_words)):
@@ -999,7 +999,7 @@ def get_all_tags_ordered_including_dots(file_path):
     all_tags_ordered = []
     with open(file_path) as f:
         for row, line in enumerate(f):
-            splited_words = line.split(' ')
+            splited_words = line.split()
             for word_idx in range(len(splited_words)):
                 cur_word, cur_tag = splited_words[word_idx].split('_')
                 all_tags_ordered.append(cur_tag)
@@ -1015,7 +1015,7 @@ def get_all_words_ordered(file_path):
     all_words_ordered = []
     with open(file_path) as f:
         for line in f:
-            splited_words = line.split(' ')
+            splited_words = line.split()
             del splited_words[-1]
             for word_idx in range(len(splited_words)):
                 cur_word, cur_tag = splited_words[word_idx].split('_')
@@ -1231,32 +1231,47 @@ def tag_competition_files():
 def main():
     #tag_competition_files()
 
-    weights_path_small = "small_model_weights"
-    feature_path_small = "small_model_features"
-    model = 'small'
-    tags_infer_file_name = "tags_infer_small_model_comp2"
-    comp1_file = "comp2.words"
+    # weights_path_small = "small_model_weights"
+    # feature_path_small = "small_model_features"
+    # model = 'small'
+    # tags_infer_file_name = "tags_infer_small_model_comp2"
+    # comp1_file = "comp2.words"
+    # test_path = "data"
+    # test_file = "train2.wtag"
+    # file_to_tag = test_file
+    # new_tagged_file_name = "train2_no_reg"
+    #
+    # # generate_dummy_tagged_file(test_path, file_to_tag)
+    # # dummy_path = ""
+    # # dummy_file = "dummy"
+    #
+    # v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
+    #
+    # tags_infer = use_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, test_path, test_file)
+    #
+    # tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    # # os.remove("dummy")
+
+    weights_path_big = "big_model_weights"
+    feature_path_big = "big_model_features"
+    tags_infer_file_name = "tags_infer_big_model_test1"
+    test1_file = "test1.wtag"
+    #comp1_file = "comp1.words"
     test_path = "data"
-    test_file = "train2.wtag"
-    file_to_tag = test_file
-    new_tagged_file_name = "train2_no_reg"
+    file_to_tag = test1_file
+    new_tagged_file_name = "test1_tagged_by_big_model_latest"
 
     # generate_dummy_tagged_file(test_path, file_to_tag)
     # dummy_path = ""
     # dummy_file = "dummy"
 
-    v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
+    #tags_infer = use_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, test_path, file_to_tag)
 
-    tags_infer = use_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, test_path, test_file)
-
-    tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    #tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     # os.remove("dummy")
 
-
-
-    new_tagged_file_name = "test1_tagged_by_big_model"
-    score_small_on_small = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name)
-    print(score_small_on_small)
+    score = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name + '.wtag')
+    print(score)
 
 
 if __name__ == '__main__':
