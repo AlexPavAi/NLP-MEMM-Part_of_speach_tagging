@@ -990,6 +990,22 @@ def get_all_gt_tags_ordered(file_path):
     return all_tags_gt_ordered
 
 
+def get_all_tags_ordered_including_dots(file_path):
+    """
+
+    :param file_path:
+    :return: all tags in the text, in order of appearance
+    """
+    all_tags_ordered = []
+    with open(file_path) as f:
+        for row, line in enumerate(f):
+            splited_words = line.split(' ')
+            for word_idx in range(len(splited_words)):
+                cur_word, cur_tag = splited_words[word_idx].split('_')
+                all_tags_ordered.append(cur_tag)
+    return all_tags_ordered
+
+
 def get_all_words_ordered(file_path):
     """
 
@@ -1166,9 +1182,10 @@ def generate_dummy_tagged_file(path_file_to_tag, file_to_tag):
                     dummy_tagged_file.write(" ")
             dummy_tagged_file.write("\n")
 
+
 def compare_tagging_results(gt_tagged_file, inference_tagged_file):
-    gt_tags = np.array(get_all_gt_tags_ordered(gt_tagged_file))
-    inference_tags = np.array(get_all_gt_tags_ordered(inference_tagged_file))
+    gt_tags = np.array(get_all_tags_ordered_including_dots(gt_tagged_file))
+    inference_tags = np.array(get_all_tags_ordered_including_dots(inference_tagged_file))
     score = np.sum(gt_tags == inference_tags)/len(gt_tags)
     return score
 
@@ -1212,16 +1229,34 @@ def tag_competition_files():
 
 
 def main():
-    tag_competition_files()
+    #tag_competition_files()
 
-    # weights_path_small = "small_model_weights"
-    # feature_path_small = "small_model_features"
-    # model = 'small'
+    weights_path_small = "small_model_weights"
+    feature_path_small = "small_model_features"
+    model = 'small'
+    tags_infer_file_name = "tags_infer_small_model_comp2"
+    comp1_file = "comp2.words"
+    test_path = "data"
+    test_file = "train2.wtag"
+    file_to_tag = test_file
+    new_tagged_file_name = "train2_no_reg"
 
-    # v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
+    # generate_dummy_tagged_file(test_path, file_to_tag)
+    # dummy_path = ""
+    # dummy_file = "dummy"
 
-    # score_small_on_small = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name)
-    # print(score_small_on_small)
+    v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
+
+    tags_infer = use_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, test_path, test_file)
+
+    tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    # os.remove("dummy")
+
+
+
+    new_tagged_file_name = "test1_tagged_by_big_model"
+    score_small_on_small = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name)
+    print(score_small_on_small)
 
 
 if __name__ == '__main__':
