@@ -272,14 +272,11 @@ class FeatureStatisticsClass:
                 del splited_words[-1]
                 for word_idx in range(len(splited_words)):
                     cur_word, cur_tag = splited_words[word_idx].split('_')
-                    word_len = len(cur_word)
-                    for idx in range(word_len):
-                        if str(cur_word[idx]).isupper():
-                            if (cur_word, cur_tag) not in self.array_count_dicts[curr_dict]:
-                                self.array_count_dicts[curr_dict][(cur_word, cur_tag)] = 1
-                            else:
-                                self.array_count_dicts[curr_dict][(cur_word, cur_tag)] += 1
-                            break
+                    if not cur_word.islower():
+                        if cur_tag not in self.array_count_dicts[curr_dict]:
+                            self.array_count_dicts[curr_dict][cur_tag] = 1
+                        else:
+                            self.array_count_dicts[curr_dict][cur_tag] += 1
 
     def get_tag_foursome_count(self, file_path):
         """
@@ -497,15 +494,12 @@ class Feature2idClass:
 
                         elif i == 9 and features_list[i]:
                             word_len = len(cur_word)
-                            for idx in range(word_len):
-                                if str(cur_word[idx]).isupper():
-                                    if ((cur_word, cur_tag) not in self.array_of_words_tags_dicts[i]) \
-                                            and (self.feature_statistics.array_count_dicts[i][(cur_word, cur_tag)] >=
+                            if (cur_tag not in self.array_of_words_tags_dicts[i]) \
+                                            and (self.feature_statistics.array_count_dicts[i].get(cur_tag, -1) >=
                                                  self.thresholds[i]):
-                                        self.array_of_words_tags_dicts[i][(cur_word, cur_tag)] = self.featureIDX
-                                        self.featureIDX += 1
-                                        self.n_tag_pairs += 1
-                                    break
+                                self.array_of_words_tags_dicts[i][cur_tag] = self.featureIDX
+                                self.featureIDX += 1
+                                self.n_tag_pairs += 1
 
                         # elif i == 9 and features_list[i]:
                         #     th_index_extra = 2 * (max_length_suf_pre_fix - min_length_suf_pre_fix + 1)
@@ -656,8 +650,8 @@ def represent_input_with_features(history, Feature2idClass, ctag_input = None, p
         features.append(tag_and_previous_two_words_dict_f3[tag_and_previous_two_words])
 
     # capital letter #
-    if (cword, ctag) in words_tags_dict_capital_letter:
-        features.append(words_tags_dict_capital_letter[(cword, ctag)])
+    if not cword.islower() and ctag in words_tags_dict_capital_letter:
+        features.append(words_tags_dict_capital_letter[ctag])
 
     # foursome tags #
     # four_consecutive_tags = (pptag, ptag, ctag, ntag)
@@ -780,8 +774,10 @@ def represent_input_with_features_for_test(history, Feature2idClass, num_feature
 
     # capital letter #
     curr_index += 1
-    if (cword, ctag) in words_tags_dict_capital_letter:
-        features[curr_index] = words_tags_dict_capital_letter[(cword, ctag)]
+    if cword.islower() or ctag not in words_tags_dict_capital_letter:
+        features[curr_index] = -1
+    else:
+        features[curr_index] = words_tags_dict_capital_letter[ctag]
 
     # # four consecutive tags #
     # curr_index += 1
@@ -1107,6 +1103,7 @@ def cross_validate(file_path, print_stat, alpha, thresholds, beam, features_list
     my_feature_statistics_class.get_next_word_curr_tag_pair_count_107(file_path)
     my_feature_statistics_class.get_tag_threesome_count_f3(file_path)
     my_feature_statistics_class.get_tag_threesome_count_tag_cur_word_prev_word(file_path)
+    my_feature_statistics_class.get_tag_word_count_capital_letter(file_path)
     my_feature2id_class = Feature2idClass(my_feature_statistics_class, num_occurrences_thresholds, num_features,
                                           min_length_of_suf_pre_fix, max_length_suf_pre_fix)
     my_feature2id_class.get_id_for_features_over_threshold(file_path, num_features, min_length_of_suf_pre_fix,
@@ -1159,7 +1156,7 @@ def train_models(weights_path, feature_path, model):
     num_features = num_dicts + num_additional_features
     if model == 'small':
         alpha, thresholds, beam = 0.1, 2, 2
-        features_list = [1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0] 
+        features_list = [1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0]
         file_path = os.path.join("data", "train2.wtag")
     if model == 'big':
         alpha, thresholds, beam = 0.35, 0, 2
