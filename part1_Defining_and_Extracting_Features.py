@@ -1231,7 +1231,8 @@ def test_trained_model(weights_path, feature_path, test_path, test_file):
     return score
 
 
-def infer_using_trained_model(weights_path, feature_path, tags_infer_file_name, test_path, test_file):
+def infer_using_trained_model(weights_path, feature_path, test_path, test_file,
+                              read_from_file=True, v=None, my_feature2id_class=None, beam=2):
     """
 
     :param weights_path: path of the weights
@@ -1239,16 +1240,20 @@ def infer_using_trained_model(weights_path, feature_path, tags_infer_file_name, 
     :param tags_infer_file_name: path to save inferred tags
     :param test_path: path for directory of the test
     :param test_file: the name of the test file
+    :param read_from_file: if true reads the parameters from file else using given parameter
+    :param v: given weight parameter
+    :param my_feature2id_class given feature class as parameter
     :return: the inferred tags
+    :param beam: the beam width
     """
-    with open(weights_path, 'rb') as f:
-        v = pickle.load(f)[0]
-    with open(feature_path, 'rb') as f:
-        my_feature2id_class = pickle.load(f)
+    if read_from_file:
+        with open(weights_path, 'rb') as f:
+            v = pickle.load(f)[0]
+        with open(feature_path, 'rb') as f:
+            my_feature2id_class = pickle.load(f)
     tags_list = my_feature2id_class.tag_list
     tag_to_ind = my_feature2id_class.tag_to_ind
     num_features = my_feature2id_class.num_feature_class
-    '''rest of the code here for example testing on test1'''
     test_path = os.path.join(test_path, test_file)
     test_history_quadruple_table = collect_history_quadruples(test_path)
     test_tags_ordered = get_all_gt_tags_ordered(test_path)
@@ -1258,9 +1263,7 @@ def infer_using_trained_model(weights_path, feature_path, tags_infer_file_name, 
                                                                                          tags_list, h, num_features,
                                                                                          requests, beam_width)
     num_h = len(test_history_quadruple_table)
-    tags_infer = infer_tags(num_h ,mat_gen, v, 2, tags_list)
-    # with open(tags_infer_file_name, 'wb') as f:
-    #     pickle.dump(tags_infer, f)
+    tags_infer = infer_tags(num_h ,mat_gen, v, beam, tags_list)
     return tags_infer
 
 
@@ -1300,7 +1303,6 @@ def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
                         tagged_file.write(" ")
 
            tagged_file.write("\n")
-    print(f'total tags number: {len(tags_infer) + extra_manual_tags}, total words: {total_num_of_words_in_file}')
 
 
 def generate_dummy_tagged_file(path_file_to_tag, file_to_tag):
@@ -1341,7 +1343,6 @@ def tag_competition_files():
     # tag comp1 #
     weights_path_big = "big_model_weights"
     feature_path_big = "big_model_features"
-    tags_infer_file_name = "tags_infer_big_model_comp1"
     comp1_file = "comp1.words"
     test_path = "data"
     file_to_tag = comp1_file
@@ -1351,7 +1352,7 @@ def tag_competition_files():
     dummy_path = ""
     dummy_file = "dummy"
 
-    tags_infer = infer_using_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, dummy_path, dummy_file)
+    tags_infer = infer_using_trained_model(weights_path_big, feature_path_big, dummy_path, dummy_file)
 
     tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     os.remove("dummy")
@@ -1369,7 +1370,7 @@ def tag_competition_files():
     dummy_path = ""
     dummy_file = "dummy"
 
-    tags_infer = infer_using_trained_model(weights_path_small, feature_path_small, tags_infer_file_name, dummy_path, dummy_file)
+    tags_infer = infer_using_trained_model(weights_path_small, feature_path_small, dummy_path, dummy_file)
 
     tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     os.remove("dummy")
