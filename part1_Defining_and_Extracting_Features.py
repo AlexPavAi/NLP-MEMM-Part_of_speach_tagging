@@ -1259,8 +1259,8 @@ def infer_using_trained_model(weights_path, feature_path, tags_infer_file_name, 
                                                                                          requests, beam_width)
     num_h = len(test_history_quadruple_table)
     tags_infer = infer_tags(num_h ,mat_gen, v, 2, tags_list)
-    with open(tags_infer_file_name, 'wb') as f:
-        pickle.dump(tags_infer, f)
+    # with open(tags_infer_file_name, 'wb') as f:
+    #     pickle.dump(tags_infer, f)
     return tags_infer
 
 
