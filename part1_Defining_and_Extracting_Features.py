@@ -327,7 +327,7 @@ class FeatureStatisticsClass:
         """
             Extract out of threesomes of consecutive tags
             :param file_path: full path of the file to read
-                return all threesomes of tag + 2 previous words
+                return all tags that appear as a first word in the sentence
         """
         curr_dict = 11
         with open(file_path) as f:
@@ -1265,6 +1265,14 @@ def infer_using_trained_model(weights_path, feature_path, tags_infer_file_name, 
 
 
 def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
+    """
+    :param path_file_to_tag: path of the folder within the file exists
+    :param file_to_tag: a file containing plain text
+    :param new_tagged_file_name: how to name the new tagged file
+    :param tags_infer: an array of all the tags that were inferred from the trained model on this file
+    :return: no retrun value, the file is saved to disc
+    """
+
     special_words_tags = ['-RRB-', "''"]
     exceptional_line_endings = [".", "!", "?"]
     curr_tag = 0
@@ -1296,6 +1304,12 @@ def tag_file(path_file_to_tag, file_to_tag, new_tagged_file_name, tags_infer):
 
 
 def generate_dummy_tagged_file(path_file_to_tag, file_to_tag):
+    """
+    :param path_file_to_tag: path of the folder within the file exists
+    :param file_to_tag: a file containing plain text
+    :return: the original text file in a format of word_TAG for all words in text, in order to fit the format the model
+    is expecting
+    """
     with open(os.path.join(path_file_to_tag, file_to_tag)) as f:
         dummy_tagged_file = open("dummy", 'w')
         for line in f:
@@ -1308,6 +1322,11 @@ def generate_dummy_tagged_file(path_file_to_tag, file_to_tag):
 
 
 def compare_tagging_results(gt_tagged_file, inference_tagged_file):
+    """
+    :param gt_tagged_file: original text with ground truth tags
+    :param inference_tagged_file: original text with inferred tags
+    :return: accuracy rate of tagging
+    """
     gt_tags = np.array(get_all_tags_ordered_including_dots(gt_tagged_file))
     inference_tags = np.array(get_all_tags_ordered_including_dots(inference_tagged_file))
     score = np.sum(gt_tags == inference_tags)/len(gt_tags)
@@ -1315,6 +1334,10 @@ def compare_tagging_results(gt_tagged_file, inference_tagged_file):
 
 
 def tag_competition_files():
+    """
+    tag comp1, comp2 files (a function made for running all inference procedure in a different file)
+    :return: comp1, comp2 tagged according to our model.
+    """
     # tag comp1 #
     weights_path_big = "big_model_weights"
     feature_path_big = "big_model_features"
@@ -1353,11 +1376,19 @@ def tag_competition_files():
 
 
 def main():
-    #tag_competition_files()
 
-    # weights_path_small = "small_model_weights"
-    # feature_path_small = "small_model_features"
-    # model = 'small'
+    weights_path_small = "small_model_weights"
+    feature_path_small = "small_model_features"
+    model = 'small'
+
+    v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
+
+    weights_path_big = "big_model_weights"
+    feature_path_big = "big_model_features"
+    model = 'big'
+
+    v, my_feature2id_class = train_models(weights_path_big, feature_path_big, model)
+
     # tags_infer_file_name = "tags_infer_small_model_comp2"
     # comp1_file = "comp2.words"
     # test_path = "data"
@@ -1369,27 +1400,33 @@ def main():
     # # dummy_path = ""
     # # dummy_file = "dummy"
 
-    weights_path_big = "big_model_weights"
-    feature_path_big = "big_model_features"
-    model = 'big'
-    tags_infer_file_name = "tags_infer_big_model_test1_with_capital"
+    # weights_path_big = "big_model_weights"
+    # feature_path_big = "big_model_features"
+    # model = 'big'
+    tags_infer_file_name = "tags_infer_small_model_test1_with_capital"
     test1_file = "test1.wtag"
     # comp1_file = "comp1.words"
     test_path = "data"
     file_to_tag = test1_file
-    new_tagged_file_name = "test1_tagged_by_big_model_latest_with_capital"
+    new_tagged_file_name = "test1_tagged_by_small_model_latest_with_capital"
     #
-    v, my_feature2id_class = train_models(weights_path_big, feature_path_big, model)
+    #v, my_feature2id_class = train_models(weights_path_small, feature_path_small, model)
+    # #
+    # tags_infer = infer_using_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, test_path, file_to_tag)
+    # #
+    # #tags_infer = pickle.load(open(tags_infer_file_name, "rb"))
+    # tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
+    # # # os.remove("dummy")
     #
-    tags_infer = infer_using_trained_model(weights_path_big, feature_path_big, tags_infer_file_name, test_path, file_to_tag)
+    # weights_path_big = "big_model_weights"
+    # feature_path_big = "big_model_features"
+    # with open(feature_path_small, 'rb') as f:
+    #     my_feature2id_class = pickle.load(f)
     #
-    #tags_infer = pickle.load(open(tags_infer_file_name, "rb"))
-    tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
-    # # os.remove("dummy")
-
-    weights_path_big = "big_model_weights"
-    feature_path_big = "big_model_features"
-
+    #     array_count_dicts = my_feature2id_class.feature_statistics.array_count_dicts
+    #     for idx, array_count_dict in enumerate(array_count_dicts):
+    #         print(f'feature num: {idx}, num_elements: {len(array_count_dict)}')
+    # print("")
 
     # generate_dummy_tagged_file(test_path, file_to_tag)
     # dummy_path = ""
@@ -1401,9 +1438,9 @@ def main():
     # tag_file(test_path, file_to_tag, new_tagged_file_name, tags_infer)
     # os.remove("dummy")
 
-    score = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name + '.wtag')
-    print(score)
-
+    # score = compare_tagging_results(os.path.join("data","test1.wtag"), new_tagged_file_name + '.wtag')
+    # print(score)
+    print("done")
 
 if __name__ == '__main__':
     main()
