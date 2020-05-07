@@ -1346,7 +1346,7 @@ def tag_competition_files():
     comp1_file = "comp1.words"
     test_path = "data"
     file_to_tag = comp1_file
-    new_tagged_file_name = "comp1_m1_304823560"
+    new_tagged_file_name = "comp_m1_304823560"
 
     generate_dummy_tagged_file(test_path, file_to_tag)
     dummy_path = ""
@@ -1364,7 +1364,7 @@ def tag_competition_files():
     comp1_file = "comp2.words"
     test_path = "data"
     file_to_tag = comp1_file
-    new_tagged_file_name = "comp2_m2_304823560"
+    new_tagged_file_name = "comp_m2_304823560"
 
     generate_dummy_tagged_file(test_path, file_to_tag)
     dummy_path = ""
